@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Universal GitHub File Viewer</title>
+  <title>Universal GitHub Repo Viewer</title>
 
   <!-- Markdown parser -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
@@ -16,7 +16,7 @@
     * {margin:0;padding:0;box-sizing:border-box;}
     body {
       font-family: system-ui, sans-serif;
-      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      background: linear-gradient(135deg,#f8fafc,#e2e8f0);
       color: #334155;
       min-height: 100vh;
     }
@@ -63,8 +63,7 @@
       padding:2rem;min-height:600px;overflow:auto;
     }
     .content-title {font-size:1.5rem;font-weight:400;color:#1e293b;margin-bottom:1rem;}
-    pre code {font-size:0.9rem;}
-    iframe {width:100%;height:80vh;border:none;border-radius:0.5rem;}
+    iframe, embed {width:100%;height:80vh;border:none;border-radius:0.5rem;}
     img {max-width:100%;border-radius:0.5rem;margin-top:1rem;}
     .error {
       background:#fef2f2;color:#dc2626;padding:1rem;border-radius:0.5rem;font-size:0.875rem;margin-top:1rem;
@@ -72,6 +71,14 @@
     .search-input {
       width:100%;padding:0.6rem 1rem;border:1px solid #e2e8f0;border-radius:0.5rem;margin-bottom:1rem;
     }
+    pre code {font-size:0.9rem;}
+    .breadcrumb {
+      display:flex;flex-wrap:wrap;gap:0.25rem;align-items:center;
+      color:#64748b;font-size:0.875rem;margin-top:0.5rem;
+    }
+    .breadcrumb span {cursor:pointer;}
+    .breadcrumb span:hover {text-decoration:underline;color:#1e293b;}
+    .breadcrumb .active {color:#1e293b;font-weight:500;text-decoration:none;cursor:default;}
   </style>
 </head>
 <body>
@@ -160,11 +167,32 @@
     function handleFileClick(file) {
       if (file.type === 'dir') {
         app.currentPath = file.path;
+        app.selectedFile = null;
         fetchFiles(app.currentPath);
       } else {
         app.selectedFile = file;
         fetchContent(file);
       }
+    }
+
+    function goToParentFolder() {
+      if (!app.currentPath) return;
+      const parts = app.currentPath.split('/');
+      parts.pop();
+      app.currentPath = parts.join('/');
+      app.selectedFile = null;
+      fetchFiles(app.currentPath);
+    }
+
+    function navigateBreadcrumb(index) {
+      if (index === -1) {
+        app.currentPath = '';
+      } else {
+        const parts = app.currentPath.split('/');
+        app.currentPath = parts.slice(0, index + 1).join('/');
+      }
+      app.selectedFile = null;
+      fetchFiles(app.currentPath);
     }
 
     function selectRepo(repo) {
@@ -178,13 +206,6 @@
     function handleFetchRepos() {
       app.username = document.getElementById('username').value.trim();
       if (app.username) fetchRepos();
-    }
-
-    function goBackToUsername() {
-      app.step = 'username';
-      app.repos = [];
-      app.selectedRepo = null;
-      render();
     }
 
     function changeRepo() {
@@ -211,13 +232,13 @@
 
       const name = file.name.toLowerCase();
 
-      // PDF files
+      // PDF Viewer (embedded)
       if (name.endsWith(".pdf")) {
-        container.innerHTML = `<iframe src="${file.download_url}"></iframe>`;
+        container.innerHTML = `<embed src="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(file.download_url)}" type="application/pdf"></embed>`;
         return;
       }
 
-      // Image files
+      // Images
       if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(name)) {
         container.innerHTML = `<img src="${file.download_url}" alt="${file.name}" />`;
         return;
@@ -230,7 +251,7 @@
         return;
       }
 
-      // Code/Text files
+      // Code/Text
       if (/\.(js|py|java|cpp|c|html|css|json|txt|sh|xml|yml|yaml|sql)$/i.test(name)) {
         container.innerHTML = `<pre><code class="language-${name.split('.').pop()}">${app.content.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</code></pre>`;
         hljs.highlightAll();
@@ -239,6 +260,16 @@
 
       // Fallback
       container.innerHTML = `<pre>${app.content}</pre>`;
+    }
+
+    function renderBreadcrumb() {
+      if (!app.currentPath) return `<span class="active">root</span>`;
+      const parts = app.currentPath.split('/');
+      let html = `<span onclick="navigateBreadcrumb(-1)">root</span>`;
+      parts.forEach((part, i) => {
+        html += ` <span>/</span> <span ${i === parts.length - 1 ? 'class="active"' : `onclick="navigateBreadcrumb(${i})"`}>${part}</span>`;
+      });
+      return html;
     }
 
     function render() {
@@ -273,20 +304,23 @@
             <div class="config-card">
               <div class="config-icon">📚</div>
               <h1 class="config-title">Select Repository</h1>
-              <button class="btn-secondary" onclick="goBackToUsername()">← Change Username</button>
+              <button class="btn-secondary" onclick="app.step='username';render()">← Change Username</button>
               <div class="repo-list">${reposHtml || '<p>No repositories found</p>'}</div>
             </div>
           </div>`;
         return;
       }
 
-      // Viewing repo files
+      // Viewing files
       const files = getFilteredFiles();
       const dirs = files.filter(f => f.type === 'dir');
       const docs = files.filter(f => f.type === 'file');
 
+      const backButton = app.currentPath ? `<button class="file-item" onclick="goToParentFolder()">⬅ Back</button>` : '';
+
       const fileListHtml = `
         <div class="file-list">
+          ${backButton}
           ${dirs.map(d => `<button class="file-item" onclick='handleFileClick(${JSON.stringify(d)})'>📁 ${d.name}</button>`).join('')}
           ${docs.map(f => `
             <button class="file-item ${app.selectedFile && app.selectedFile.path === f.path ? 'active' : ''}"
@@ -310,6 +344,7 @@
               </div>
               <button class="btn-secondary" onclick="changeRepo()">Change Repo</button>
             </div>
+            <div class="breadcrumb">${renderBreadcrumb()}</div>
           </div>
           <div class="main-content">
             <div class="sidebar">
