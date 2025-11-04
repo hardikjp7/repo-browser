@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Universal GitHub File Viewer</title>
+
+  <!-- Markdown parser -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+
+  <!-- Syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <style>
+    * {margin:0;padding:0;box-sizing:border-box;}
+    body {
+      font-family: system-ui, sans-serif;
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      color: #334155;
+      min-height: 100vh;
+    }
+
+    .container {max-width:1400px;margin:0 auto;padding:2rem;}
+    .config-screen {display:flex;align-items:center;justify-content:center;min-height:100vh;}
+    .config-card {
+      background:white;border-radius:1rem;box-shadow:0 10px 40px rgba(0,0,0,0.1);
+      padding:2.5rem;max-width:500px;width:100%;
+    }
+    .config-icon{text-align:center;font-size:3rem;margin-bottom:1rem;}
+    .config-title{text-align:center;font-size:1.75rem;font-weight:300;margin-bottom:2rem;}
+    input[type="text"] {
+      width:100%;padding:0.75rem 1rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;
+    }
+    input[type="text"]:focus {outline:none;border-color:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,0.1);}
+    .btn {
+      width:100%;padding:0.875rem;background:#1e293b;color:white;border:none;border-radius:0.5rem;
+      font-size:1rem;font-weight:500;cursor:pointer;transition:background 0.2s;
+    }
+    .btn:hover{background:#334155;}
+    .btn-secondary {
+      background:transparent;color:#475569;padding:0.5rem 1rem;width:auto;font-size:0.875rem;border:none;cursor:pointer;
+    }
+    .btn-secondary:hover{color:#1e293b;background:#f1f5f9;}
+    .repo-list{margin-top:1rem;max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:0.5rem;}
+    .repo-item{padding:1rem;border-bottom:1px solid #e2e8f0;cursor:pointer;transition:background 0.2s;}
+    .repo-item:hover{background:#f8fafc;}
+    .header{background:white;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);padding:1.5rem;margin-bottom:1.5rem;}
+    .main-content{display:grid;grid-template-columns:350px 1fr;gap:1.5rem;}
+    @media(max-width:1024px){.main-content{grid-template-columns:1fr;}}
+    .sidebar {
+      background:white;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);padding:1.5rem;
+    }
+    .file-list{display:flex;flex-direction:column;gap:0.5rem;}
+    .file-item {
+      display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.5rem;
+      cursor:pointer;transition:background 0.2s;border:none;background:transparent;width:100%;
+    }
+    .file-item:hover{background:#f8fafc;}
+    .file-item.active{background:#1e293b;color:white;}
+    .content-area {
+      background:white;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);
+      padding:2rem;min-height:600px;overflow:auto;
+    }
+    .content-title {font-size:1.5rem;font-weight:400;color:#1e293b;margin-bottom:1rem;}
+    pre code {font-size:0.9rem;}
+    iframe {width:100%;height:80vh;border:none;border-radius:0.5rem;}
+    img {max-width:100%;border-radius:0.5rem;margin-top:1rem;}
+    .error {
+      background:#fef2f2;color:#dc2626;padding:1rem;border-radius:0.5rem;font-size:0.875rem;margin-top:1rem;
+    }
+    .search-input {
+      width:100%;padding:0.6rem 1rem;border:1px solid #e2e8f0;border-radius:0.5rem;margin-bottom:1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    var app = {
+      step: 'username',
+      username: '',
+      repos: [],
+      selectedRepo: null,
+      selectedBranch: 'main',
+      files: [],
+      currentPath: '',
+      selectedFile: null,
+      content: '',
+      loading: false,
+      error: '',
+      searchTerm: ''
+    };
+
+    function fetchRepos() {
+      app.loading = true; app.error = ''; render();
+      fetch(`https://api.github.com/users/${app.username}/repos?per_page=100&sort=updated`)
+        .then(r => {
+          if (!r.ok) throw new Error('User not found or API limit reached');
+          return r.json();
+        })
+        .then(data => {
+          app.repos = data;
+          app.step = 'repo-select';
+          app.loading = false;
+          render();
+        })
+        .catch(err => {
+          app.error = err.message;
+          app.loading = false;
+          render();
+        });
+    }
+
+    function fetchFiles(path) {
+      app.loading = true; app.error = ''; render();
+      const url = `https://api.github.com/repos/${app.username}/${app.selectedRepo.name}/contents/${path}?ref=${app.selectedBranch}`;
+      fetch(url)
+        .then(r => {
+          if (!r.ok) throw new Error('Failed to fetch files for this repository.');
+          return r.json();
+        })
+        .then(data => {
+          app.files = data;
+          app.loading = false;
+          render();
+        })
+        .catch(err => {
+          app.error = err.message;
+          app.files = [];
+          app.loading = false;
+          render();
+        });
+    }
+
+    function fetchContent(file) {
+      app.loading = true;
+      app.error = '';
+      render();
+
+      fetch(file.download_url)
+        .then(r => {
+          if (!r.ok) throw new Error('Failed to fetch file content');
+          return r.text();
+        })
+        .then(text => {
+          app.content = text;
+          app.selectedFile = file;
+          app.loading = false;
+          render();
+        })
+        .catch(err => {
+          app.error = err.message;
+          app.loading = false;
+          render();
+        });
+    }
+
+    function handleFileClick(file) {
+      if (file.type === 'dir') {
+        app.currentPath = file.path;
+        fetchFiles(app.currentPath);
+      } else {
+        app.selectedFile = file;
+        fetchContent(file);
+      }
+    }
+
+    function selectRepo(repo) {
+      app.selectedRepo = repo;
+      app.selectedBranch = repo.default_branch || 'main';
+      app.step = 'viewing';
+      app.currentPath = '';
+      fetchFiles('');
+    }
+
+    function handleFetchRepos() {
+      app.username = document.getElementById('username').value.trim();
+      if (app.username) fetchRepos();
+    }
+
+    function goBackToUsername() {
+      app.step = 'username';
+      app.repos = [];
+      app.selectedRepo = null;
+      render();
+    }
+
+    function changeRepo() {
+      app.step = 'repo-select';
+      app.selectedFile = null;
+      app.content = '';
+      app.currentPath = '';
+      render();
+    }
+
+    function handleSearch(e) {
+      app.searchTerm = e.target.value;
+      render();
+    }
+
+    function getFilteredFiles() {
+      return app.files.filter(f => f.name.toLowerCase().includes(app.searchTerm.toLowerCase()));
+    }
+
+    function renderFileContent() {
+      const file = app.selectedFile;
+      const container = document.getElementById("file-view");
+      if (!file || !container) return;
+
+      const name = file.name.toLowerCase();
+
+      // PDF files
+      if (name.endsWith(".pdf")) {
+        container.innerHTML = `<iframe src="${file.download_url}"></iframe>`;
+        return;
+      }
+
+      // Image files
+      if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(name)) {
+        container.innerHTML = `<img src="${file.download_url}" alt="${file.name}" />`;
+        return;
+      }
+
+      // Markdown
+      if (/\.(md|markdown|mdx)$/i.test(name)) {
+        container.innerHTML = marked.parse(app.content);
+        hljs.highlightAll();
+        return;
+      }
+
+      // Code/Text files
+      if (/\.(js|py|java|cpp|c|html|css|json|txt|sh|xml|yml|yaml|sql)$/i.test(name)) {
+        container.innerHTML = `<pre><code class="language-${name.split('.').pop()}">${app.content.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</code></pre>`;
+        hljs.highlightAll();
+        return;
+      }
+
+      // Fallback
+      container.innerHTML = `<pre>${app.content}</pre>`;
+    }
+
+    function render() {
+      const el = document.getElementById('app');
+
+      if (app.step === 'username') {
+        el.innerHTML = `
+          <div class="config-screen">
+            <div class="config-card">
+              <div class="config-icon">👤</div>
+              <h1 class="config-title">Enter GitHub Username</h1>
+              <input type="text" id="username" value="${app.username}" placeholder="octocat">
+              <button class="btn" onclick="handleFetchRepos()" ${app.loading ? 'disabled' : ''}>
+                ${app.loading ? 'Loading...' : 'Fetch Repositories'}
+              </button>
+              ${app.error ? `<div class="error">${app.error}</div>` : ''}
+            </div>
+          </div>`;
+        return;
+      }
+
+      if (app.step === 'repo-select') {
+        const reposHtml = app.repos.map(r => `
+          <div class="repo-item" onclick='selectRepo(${JSON.stringify(r)})'>
+            <div class="repo-name">${r.name}</div>
+            ${r.description ? `<div class="repo-desc">${r.description}</div>` : ''}
+            <div class="repo-branch">Branch: ${r.default_branch || 'main'}</div>
+          </div>
+        `).join('');
+        el.innerHTML = `
+          <div class="config-screen">
+            <div class="config-card">
+              <div class="config-icon">📚</div>
+              <h1 class="config-title">Select Repository</h1>
+              <button class="btn-secondary" onclick="goBackToUsername()">← Change Username</button>
+              <div class="repo-list">${reposHtml || '<p>No repositories found</p>'}</div>
+            </div>
+          </div>`;
+        return;
+      }
+
+      // Viewing repo files
+      const files = getFilteredFiles();
+      const dirs = files.filter(f => f.type === 'dir');
+      const docs = files.filter(f => f.type === 'file');
+
+      const fileListHtml = `
+        <div class="file-list">
+          ${dirs.map(d => `<button class="file-item" onclick='handleFileClick(${JSON.stringify(d)})'>📁 ${d.name}</button>`).join('')}
+          ${docs.map(f => `
+            <button class="file-item ${app.selectedFile && app.selectedFile.path === f.path ? 'active' : ''}"
+              onclick='handleFileClick(${JSON.stringify(f)})'>
+              📄 ${f.name}
+            </button>`).join('')}
+        </div>`;
+
+      const contentHtml = app.selectedFile ? `
+        <h2 class="content-title">${app.selectedFile.name}</h2>
+        <div id="file-view"></div>
+      ` : '<p>Select a file to view its content</p>';
+
+      el.innerHTML = `
+        <div class="container">
+          <div class="header">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <h2>${app.username}/${app.selectedRepo.name}</h2>
+                <p>Branch: ${app.selectedBranch}</p>
+              </div>
+              <button class="btn-secondary" onclick="changeRepo()">Change Repo</button>
+            </div>
+          </div>
+          <div class="main-content">
+            <div class="sidebar">
+              <h2>Files</h2>
+              <input type="text" class="search-input" placeholder="Search files..." value="${app.searchTerm}" oninput="handleSearch(event)">
+              ${app.error ? `<div class="error">${app.error}</div>` : ''}
+              ${fileListHtml}
+            </div>
+            <div class="content-area">${contentHtml}</div>
+          </div>
+        </div>
+      `;
+
+      if (app.selectedFile && app.content) renderFileContent();
+    }
+
+    render();
+  </script>
+</body>
+</html>
