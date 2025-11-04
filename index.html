@@ -9,76 +9,570 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 
   <!-- Syntax highlighting -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
   <style>
-    * {margin:0;padding:0;box-sizing:border-box;}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
     body {
-      font-family: system-ui, sans-serif;
-      background: linear-gradient(135deg,#f8fafc,#e2e8f0);
-      color: #334155;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #1e293b;
       min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
     }
 
-    .container {max-width:1400px;margin:0 auto;padding:2rem;}
-    .config-screen {display:flex;align-items:center;justify-content:center;min-height:100vh;}
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 20% 30%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.3) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Config Screen Styles */
+    .config-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
     .config-card {
-      background:white;border-radius:1rem;box-shadow:0 10px 40px rgba(0,0,0,0.1);
-      padding:2.5rem;max-width:500px;width:100%;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 3rem;
+      max-width: 500px;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      animation: slideUp 0.6s ease-out;
     }
-    .config-icon{text-align:center;font-size:3rem;margin-bottom:1rem;}
-    .config-title{text-align:center;font-size:1.75rem;font-weight:300;margin-bottom:2rem;}
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .config-icon {
+      text-align: center;
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .config-title {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
     input[type="text"] {
-      width:100%;padding:0.75rem 1rem;border:1px solid #e2e8f0;border-radius:0.5rem;font-size:0.875rem;
+      width: 100%;
+      padding: 1rem 1.25rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      font-family: 'Inter', sans-serif;
     }
-    input[type="text"]:focus {outline:none;border-color:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,0.1);}
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+      transform: translateY(-2px);
+    }
+
     .btn {
-      width:100%;padding:0.875rem;background:#1e293b;color:white;border:none;border-radius:0.5rem;
-      font-size:1rem;font-weight:500;cursor:pointer;transition:background 0.2s;
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 1rem;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
-    .btn:hover{background:#334155;}
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .btn-secondary {
-      background:transparent;color:#475569;padding:0.5rem 1rem;width:auto;font-size:0.875rem;border:none;cursor:pointer;
+      background: transparent;
+      color: #667eea;
+      padding: 0.75rem 1.5rem;
+      width: auto;
+      font-size: 0.9rem;
+      border: 2px solid #667eea;
+      cursor: pointer;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
     }
-    .btn-secondary:hover{color:#1e293b;background:#f1f5f9;}
-    .repo-list{margin-top:1rem;max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:0.5rem;}
-    .repo-item{padding:1rem;border-bottom:1px solid #e2e8f0;cursor:pointer;transition:background 0.2s;}
-    .repo-item:hover{background:#f8fafc;}
-    .header{background:white;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);padding:1.5rem;margin-bottom:1.5rem;}
-    .main-content{display:grid;grid-template-columns:350px 1fr;gap:1.5rem;}
-    @media(max-width:1024px){.main-content{grid-template-columns:1fr;}}
+
+    .btn-secondary:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Repo List Styles */
+    .repo-list {
+      margin-top: 1.5rem;
+      max-height: 450px;
+      overflow-y: auto;
+      border: 2px solid #e2e8f0;
+      border-radius: 16px;
+      background: #f8fafc;
+    }
+
+    .repo-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .repo-list::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 10px;
+    }
+
+    .repo-list::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+
+    .repo-list::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .repo-item {
+      padding: 1.25rem;
+      border-bottom: 1px solid #e2e8f0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .repo-item:first-child {
+      border-radius: 14px 14px 0 0;
+    }
+
+    .repo-item:last-child {
+      border-bottom: none;
+      border-radius: 0 0 14px 14px;
+    }
+
+    .repo-item:hover {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+      transform: translateX(8px);
+      padding-left: 1.75rem;
+    }
+
+    .repo-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+    }
+
+    .repo-desc {
+      font-size: 0.875rem;
+      color: #64748b;
+      margin-bottom: 0.5rem;
+    }
+
+    .repo-branch {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    /* Header Styles */
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      animation: slideDown 0.6s ease-out;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .header h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: #64748b;
+      font-size: 0.95rem;
+    }
+
+    /* Main Content Grid */
+    .main-content {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 1.5rem;
+      animation: fadeIn 0.6s ease-out 0.2s both;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @media(max-width: 1024px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sidebar Styles */
     .sidebar {
-      background:white;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);padding:1.5rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 1.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      height: fit-content;
+      max-height: calc(100vh - 250px);
+      overflow-y: auto;
     }
-    .file-list{display:flex;flex-direction:column;gap:0.5rem;}
+
+    .sidebar::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 10px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+
+    .sidebar h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #1e293b;
+    }
+
+    /* File List Styles */
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
     .file-item {
-      display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.5rem;
-      cursor:pointer;transition:background 0.2s;border:none;background:transparent;width:100%;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1rem;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: none;
+      background: #f8fafc;
+      width: 100%;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      color: #334155;
+      font-weight: 500;
+      text-align: left;
     }
-    .file-item:hover{background:#f8fafc;}
-    .file-item.active{background:#1e293b;color:white;}
+
+    .file-item:hover {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%);
+      transform: translateX(6px);
+    }
+
+    .file-item.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Content Area Styles */
     .content-area {
-      background:white;border-radius:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.05);
-      padding:2rem;min-height:600px;overflow:auto;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 2.5rem;
+      min-height: 600px;
+      overflow: auto;
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
-    .content-title {font-size:1.5rem;font-weight:400;color:#1e293b;margin-bottom:1rem;}
-    iframe, embed {width:100%;height:80vh;border:none;border-radius:0.5rem;}
-    img {max-width:100%;border-radius:0.5rem;margin-top:1rem;}
-    .error {
-      background:#fef2f2;color:#dc2626;padding:1rem;border-radius:0.5rem;font-size:0.875rem;margin-top:1rem;
+
+    .content-area::-webkit-scrollbar {
+      width: 10px;
     }
+
+    .content-area::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 10px;
+    }
+
+    .content-area::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 10px;
+    }
+
+    .content-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    /* Search Input */
     .search-input {
-      width:100%;padding:0.6rem 1rem;border:1px solid #e2e8f0;border-radius:0.5rem;margin-bottom:1rem;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      transition: all 0.3s ease;
+      font-family: 'Inter', sans-serif;
     }
-    pre code {font-size:0.9rem;}
+
+    .search-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    /* Error Message */
+    .error {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      color: #dc2626;
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      margin-top: 1rem;
+      border-left: 4px solid #dc2626;
+      font-weight: 500;
+    }
+
+    /* Code Styles */
+    pre code {
+      font-size: 0.9rem;
+      border-radius: 12px;
+    }
+
+    pre {
+      border-radius: 12px;
+      margin-top: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Images and Media */
+    iframe, embed {
+      width: 100%;
+      height: 80vh;
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    img {
+      max-width: 100%;
+      border-radius: 16px;
+      margin-top: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Breadcrumb */
     .breadcrumb {
-      display:flex;flex-wrap:wrap;gap:0.25rem;align-items:center;
-      color:#64748b;font-size:0.875rem;margin-top:0.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      color: #64748b;
+      font-size: 0.875rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
     }
-    .breadcrumb span {cursor:pointer;}
-    .breadcrumb span:hover {text-decoration:underline;color:#1e293b;}
-    .breadcrumb .active {color:#1e293b;font-weight:500;text-decoration:none;cursor:default;}
+
+    .breadcrumb span {
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .breadcrumb span:hover:not(.active) {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+    }
+
+    .breadcrumb .active {
+      color: #667eea;
+      font-weight: 600;
+      cursor: default;
+      background: rgba(102, 126, 234, 0.1);
+    }
+
+    /* Loading State */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    /* Markdown Content Styling */
+    .content-area h1, .content-area h2, .content-area h3 {
+      margin-top: 1.5rem;
+      margin-bottom: 1rem;
+      color: #1e293b;
+    }
+
+    .content-area p {
+      line-height: 1.7;
+      margin-bottom: 1rem;
+      color: #475569;
+    }
+
+    .content-area a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .content-area a:hover {
+      text-decoration: underline;
+    }
+
+    .content-area ul, .content-area ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+      line-height: 1.7;
+    }
+
+    .content-area blockquote {
+      border-left: 4px solid #667eea;
+      padding-left: 1rem;
+      margin: 1rem 0;
+      color: #64748b;
+      font-style: italic;
+    }
+
+    /* Responsive Design */
+    @media(max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .config-card {
+        padding: 2rem;
+      }
+
+      .header {
+        padding: 1.5rem;
+      }
+
+      .sidebar {
+        padding: 1.25rem;
+      }
+
+      .content-area {
+        padding: 1.5rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -279,11 +773,11 @@
         el.innerHTML = `
           <div class="config-screen">
             <div class="config-card">
-              <div class="config-icon">👤</div>
-              <h1 class="config-title">Enter GitHub Username</h1>
-              <input type="text" id="username" value="${app.username}" placeholder="octocat">
+              <div class="config-icon">🚀</div>
+              <h1 class="config-title">GitHub Repo Viewer</h1>
+              <input type="text" id="username" value="${app.username}" placeholder="Enter GitHub username...">
               <button class="btn" onclick="handleFetchRepos()" ${app.loading ? 'disabled' : ''}>
-                ${app.loading ? 'Loading...' : 'Fetch Repositories'}
+                ${app.loading ? '<span class="loading-spinner"></span> Loading...' : 'Fetch Repositories'}
               </button>
               ${app.error ? `<div class="error">${app.error}</div>` : ''}
             </div>
@@ -294,9 +788,9 @@
       if (app.step === 'repo-select') {
         const reposHtml = app.repos.map(r => `
           <div class="repo-item" onclick='selectRepo(${JSON.stringify(r)})'>
-            <div class="repo-name">${r.name}</div>
+            <div class="repo-name">📦 ${r.name}</div>
             ${r.description ? `<div class="repo-desc">${r.description}</div>` : ''}
-            <div class="repo-branch">Branch: ${r.default_branch || 'main'}</div>
+            <div class="repo-branch">🌿 Branch: ${r.default_branch || 'main'}</div>
           </div>
         `).join('');
         el.innerHTML = `
@@ -305,7 +799,7 @@
               <div class="config-icon">📚</div>
               <h1 class="config-title">Select Repository</h1>
               <button class="btn-secondary" onclick="app.step='username';render()">← Change Username</button>
-              <div class="repo-list">${reposHtml || '<p>No repositories found</p>'}</div>
+              <div class="repo-list">${reposHtml || '<p style="padding: 1rem; text-align: center; color: #64748b;">No repositories found</p>'}</div>
             </div>
           </div>`;
         return;
@@ -316,7 +810,7 @@
       const dirs = files.filter(f => f.type === 'dir');
       const docs = files.filter(f => f.type === 'file');
 
-      const backButton = app.currentPath ? `<button class="file-item" onclick="goToParentFolder()">⬅ Back</button>` : '';
+      const backButton = app.currentPath ? `<button class="file-item" onclick="goToParentFolder()">⬅️ Back</button>` : '';
 
       const fileListHtml = `
         <div class="file-list">
@@ -332,15 +826,15 @@
       const contentHtml = app.selectedFile ? `
         <h2 class="content-title">${app.selectedFile.name}</h2>
         <div id="file-view"></div>
-      ` : '<p>Select a file to view its content</p>';
+      ` : '<p style="text-align: center; color: #64748b; padding: 4rem 0;">Select a file to view its content</p>';
 
       el.innerHTML = `
         <div class="container">
           <div class="header">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
               <div>
-                <h2>${app.username}/${app.selectedRepo.name}</h2>
-                <p>Branch: ${app.selectedBranch}</p>
+                <h2>📦 ${app.username}/${app.selectedRepo.name}</h2>
+                <p>🌿 Branch: ${app.selectedBranch}</p>
               </div>
               <button class="btn-secondary" onclick="changeRepo()">Change Repo</button>
             </div>
@@ -348,8 +842,8 @@
           </div>
           <div class="main-content">
             <div class="sidebar">
-              <h2>Files</h2>
-              <input type="text" class="search-input" placeholder="Search files..." value="${app.searchTerm}" oninput="handleSearch(event)">
+              <h2>📂 Files</h2>
+              <input type="text" class="search-input" placeholder="🔍 Search files..." value="${app.searchTerm}" oninput="handleSearch(event)">
               ${app.error ? `<div class="error">${app.error}</div>` : ''}
               ${fileListHtml}
             </div>
