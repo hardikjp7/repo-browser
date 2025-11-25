@@ -698,7 +698,7 @@
 
     function fetchRepos() {
       app.loading = true; app.error = ''; render();
-      fetch(\`https://api.github.com/users/\${app.username}/repos?per_page=100&sort=updated\`)
+      fetch(`https://api.github.com/users/${app.username}/repos?per_page=100&sort=updated`)
         .then(r => {
           if (!r.ok) throw new Error('User not found or API limit reached');
           return r.json();
@@ -718,7 +718,7 @@
 
     function fetchFiles(path) {
       app.loading = true; app.error = ''; render();
-      const url = \`https://api.github.com/repos/\${app.username}/\${app.selectedRepo.name}/contents/\${path}?ref=\${app.selectedBranch}\`;
+      const url = `https://api.github.com/repos/${app.username}/${app.selectedRepo.name}/contents/${path}?ref=${app.selectedBranch}`;
       fetch(url)
         .then(r => {
           if (!r.ok) throw new Error('Failed to fetch files for this repository.');
@@ -757,35 +757,6 @@
           app.error = err.message;
           app.loading = false;
           render();
-        });
-    }
-
-    // 🔽 NEW: Download the currently opened file
-    function downloadCurrentFile() {
-      if (!app.selectedFile || !app.selectedFile.download_url) return;
-
-      const url = app.selectedFile.download_url;
-      const fileName = app.selectedFile.name || 'download';
-
-      fetch(url)
-        .then(r => {
-          if (!r.ok) throw new Error('Failed to download file');
-          return r.blob();
-        })
-        .then(blob => {
-          const link = document.createElement('a');
-          const objectUrl = URL.createObjectURL(blob);
-
-          link.href = objectUrl;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          URL.revokeObjectURL(objectUrl);
-        })
-        .catch(err => {
-          console.error(err);
-          alert('Could not download this file.');
         });
     }
 
@@ -852,19 +823,19 @@
 
       // PDF Viewer
       if (name.endsWith(".pdf")) {
-        container.innerHTML = \`<embed src="https://docs.google.com/gview?embedded=true&url=\${encodeURIComponent(file.download_url)}" type="application/pdf"></embed>\`;
+        container.innerHTML = `<embed src="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(file.download_url)}" type="application/pdf"></embed>`;
         return;
       }
 
       // Images
       if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(name)) {
-        container.innerHTML = \`<img src="\${file.download_url}" alt="\${file.name}" />\`;
+        container.innerHTML = `<img src="${file.download_url}" alt="${file.name}" />`;
         return;
       }
 
       // Markdown
       if (/\.(md|markdown|mdx)$/i.test(name)) {
-        container.innerHTML = \`<div class="markdown-body">\${marked.parse(app.content)}</div>\`;
+        container.innerHTML = `<div class="markdown-body">${marked.parse(app.content)}</div>`;
         hljs.highlightAll();
         return;
       }
@@ -872,25 +843,25 @@
       // Code
       if (/\.(js|py|java|cpp|c|html|css|json|txt|sh|xml|yml|yaml|sql|jsx|tsx|ts)$/i.test(name)) {
         const ext = name.split('.').pop();
-        container.innerHTML = \`<pre><code class="language-\${ext}">\${app.content.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</code></pre>\`;
+        container.innerHTML = `<pre><code class="language-${ext}">${app.content.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</code></pre>`;
         hljs.highlightAll();
         return;
       }
 
       // Fallback
-      container.innerHTML = \`<pre><code>\${app.content}</code></pre>\`;
+      container.innerHTML = `<pre><code>${app.content}</code></pre>`;
     }
 
     function renderBreadcrumb() {
-      if (!app.currentPath) return \`<strong>\${app.selectedRepo.name}</strong>\`;
+      if (!app.currentPath) return `<strong>${app.selectedRepo.name}</strong>`;
       const parts = app.currentPath.split('/');
-      let html = \`<span onclick="navigateBreadcrumb(-1)">\${app.selectedRepo.name}</span>\`;
+      let html = `<span onclick="navigateBreadcrumb(-1)">${app.selectedRepo.name}</span>`;
       parts.forEach((part, i) => {
-        html += \` <span class="separator">/</span> \`;
+        html += ` <span class="separator">/</span> `;
         if (i === parts.length - 1) {
-          html += \`<strong>\${part}</strong>\`;
+          html += `<strong>${part}</strong>`;
         } else {
-          html += \`<span onclick="navigateBreadcrumb(\${i})">\${part}</span>\`;
+          html += `<span onclick="navigateBreadcrumb(${i})">${part}</span>`;
         }
       });
       return html;
@@ -905,29 +876,57 @@
       
       dirs.forEach(d => {
         const icon = '📁';
-        html += \`<button class="tree-item" onclick='handleFileClick(\${JSON.stringify(d)})'>
-          <span class="tree-item-icon">\${icon}</span>
-          <span class="tree-item-name">\${d.name}</span>
-        </button>\`;
+        html += `<button class="tree-item" onclick='handleFileClick(${JSON.stringify(d)})'>
+          <span class="tree-item-icon">${icon}</span>
+          <span class="tree-item-name">${d.name}</span>
+        </button>`;
       });
 
       docs.forEach(f => {
         const isActive = app.selectedFile && app.selectedFile.path === f.path;
         const icon = '📄';
-        html += \`<button class="tree-item \${isActive ? 'active' : ''}" onclick='handleFileClick(\${JSON.stringify(f)})'>
-          <span class="tree-item-icon">\${icon}</span>
-          <span class="tree-item-name">\${f.name}</span>
-        </button>\`;
+        html += `<button class="tree-item ${isActive ? 'active' : ''}" onclick='handleFileClick(${JSON.stringify(f)})'>
+          <span class="tree-item-icon">${icon}</span>
+          <span class="tree-item-name">${f.name}</span>
+        </button>`;
       });
 
       return html;
+    }
+
+    // ⭐ NEW: Download current opened file
+    function downloadCurrentFile() {
+      if (!app.selectedFile) return;
+
+      const file = app.selectedFile;
+
+      // Use fetch + blob so it works well even for binary files
+      fetch(file.download_url)
+        .then(response => {
+          if (!response.ok) throw new Error('Failed to download file');
+          return response.blob();
+        })
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name; // keeps original file name
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        })
+        .catch(err => {
+          app.error = err.message;
+          render();
+        });
     }
 
     function render() {
       const el = document.getElementById('app');
 
       if (app.step === 'username') {
-        el.innerHTML = \`
+        el.innerHTML = `
           <div class="config-screen">
             <div class="config-card">
               <div class="config-icon">
@@ -936,43 +935,43 @@
                 </svg>
               </div>
               <h1 class="config-title">GitHub Repository Viewer</h1>
-              <input type="text" id="username" value="\${app.username}" placeholder="Enter GitHub username">
-              <button class="btn" onclick="handleFetchRepos()" \${app.loading ? 'disabled' : ''}>
-                \${app.loading ? '<span class="loading-spinner"></span>Loading...' : 'Fetch Repositories'}
+              <input type="text" id="username" value="${app.username}" placeholder="Enter GitHub username">
+              <button class="btn" onclick="handleFetchRepos()" ${app.loading ? 'disabled' : ''}>
+                ${app.loading ? '<span class="loading-spinner"></span>Loading...' : 'Fetch Repositories'}
               </button>
-              \${app.error ? \`<div class="error">\${app.error}</div>\` : ''}
+              ${app.error ? `<div class="error">${app.error}</div>` : ''}
             </div>
           </div>
           <div class="footer">
             <div class="footer-content">Made by Hardik</div>
-          </div>\`;
+          </div>`;
         return;
       }
 
       if (app.step === 'repo-select') {
-        const reposHtml = app.repos.map(r => \`
-          <div class="repo-item" onclick='selectRepo(\${JSON.stringify(r)})'>
-            <div class="repo-name">\${r.name}</div>
-            \${r.description ? \`<div class="repo-desc">\${r.description}</div>\` : ''}
-            <div class="repo-branch">Default branch: \${r.default_branch || 'main'}</div>
+        const reposHtml = app.repos.map(r => `
+          <div class="repo-item" onclick='selectRepo(${JSON.stringify(r)})'>
+            <div class="repo-name">${r.name}</div>
+            ${r.description ? `<div class="repo-desc">${r.description}</div>` : ''}
+            <div class="repo-branch">Default branch: ${r.default_branch || 'main'}</div>
           </div>
-        \`).join('');
-        el.innerHTML = \`
+        `).join('');
+        el.innerHTML = `
           <div class="config-screen">
             <div class="config-card">
               <h1 class="config-title">Select Repository</h1>
               <button class="btn-secondary" onclick="app.step='username';render()">← Back to Username</button>
-              <div class="repo-list">\${reposHtml || '<div style="padding: 16px; text-align: center; color: #8b949e;">No repositories found</div>'}</div>
+              <div class="repo-list">${reposHtml || '<div style="padding: 16px; text-align: center; color: #8b949e;">No repositories found</div>'}</div>
             </div>
           </div>
           <div class="footer">
             <div class="footer-content">Made by Hardik</div>
-          </div>\`;
+          </div>`;
         return;
       }
 
       // Main viewing interface
-      el.innerHTML = \`
+      el.innerHTML = `
         <div class="gh-top-header">
           <div class="gh-top-header-inner">
             <div class="gh-logo">
@@ -981,9 +980,9 @@
               </svg>
             </div>
             <a class="gh-repo-link">
-              <span>\${app.username}</span>
+              <span>${app.username}</span>
               <span class="gh-divider">/</span>
-              <strong>\${app.selectedRepo.name}</strong>
+              <strong>${app.selectedRepo.name}</strong>
             </a>
             <button class="btn-secondary" onclick="changeRepo()">Change Repository</button>
           </div>
@@ -1005,49 +1004,50 @@
             <div class="sidebar-header">
               <div class="sidebar-title">Files</div>
               <div class="branch-selector">
-                🔀 \${app.selectedBranch}
+                🔀 ${app.selectedBranch}
               </div>
             </div>
             <div class="search-box">
-              <input type="text" class="search-input" placeholder="Go to file" value="\${app.searchTerm}" oninput="handleSearch(event)">
+              <input type="text" class="search-input" placeholder="Go to file" value="${app.searchTerm}" oninput="handleSearch(event)">
             </div>
-            \${app.error ? \`<div class="error">\${app.error}</div>\` : ''}
+            ${app.error ? `<div class="error">${app.error}</div>` : ''}
             <div class="file-tree">
-              \${renderFileTree()}
+              ${renderFileTree()}
             </div>
           </div>
 
           <div class="content-area">
-            \${app.selectedFile ? \`
+            ${app.selectedFile ? `
               <div class="file-header">
-                <div class="file-path">\${renderBreadcrumb()}</div>
+                <div class="file-path">${renderBreadcrumb()}</div>
                 <div class="file-info">
                   <div class="file-meta">
-                    <span>\${app.files.length} files</span>
+                    <span>${app.files.length} files</span>
                   </div>
                   <div class="file-actions">
+                    <!-- ⭐ NEW: Download button -->
                     <button class="action-btn" onclick="downloadCurrentFile()">⬇ Download</button>
-                    <button class="action-btn" onclick="app.selectedFile=null;render()">← Back to files</button>
+                    <button class="action-btn" onclick="app.selectedFile=null;app.content='';render()">← Back to files</button>
                   </div>
                 </div>
               </div>
               <div class="file-content">
                 <div id="file-view"></div>
               </div>
-            \` : \`
+            ` : `
               <div class="empty-state">
                 <div class="empty-state-icon">📂</div>
                 <div class="empty-state-title">Select a file to view</div>
                 <div class="empty-state-desc">Choose a file from the sidebar to see its contents</div>
               </div>
-            \`}
+            `}
           </div>
         </div>
 
         <div class="footer">
           <div class="footer-content">Made by Hardik</div>
         </div>
-      \`;
+      `;
 
       if (app.selectedFile && app.content) renderFileContent();
     }
