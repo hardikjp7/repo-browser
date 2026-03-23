@@ -1,1058 +1,1324 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Universal GitHub Repo Viewer</title>
-
-  <!-- Markdown parser -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-
-  <!-- Syntax highlighting -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      line-height: 1.5;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-
-    /* GitHub Top Header */
-    .gh-top-header {
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
-      padding: 16px 32px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .gh-top-header-inner {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .gh-logo {
-      display: flex;
-      align-items: center;
-    }
-
-    .gh-logo svg {
-      fill: #e6edf3;
-    }
-
-    .gh-repo-link {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      color: #e6edf3;
-      font-size: 14px;
-      font-weight: 600;
-      text-decoration: none;
-    }
-
-    .gh-repo-link:hover {
-      color: #58a6ff;
-    }
-
-    .gh-divider {
-      color: #6e7681;
-    }
-
-    /* Navigation Tabs */
-    .nav-tabs {
-      background: #0d1117;
-      border-bottom: 1px solid #21262d;
-      padding: 0 32px;
-      overflow-x: auto;
-    }
-
-    .nav-tabs-inner {
-      display: flex;
-      gap: 0;
-      min-height: 48px;
-    }
-
-    .nav-tab {
-      padding: 0 16px;
-      color: #e6edf3;
-      font-size: 14px;
-      font-weight: 400;
-      border-bottom: 2px solid transparent;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
-    }
-
-    .nav-tab:hover {
-      border-bottom-color: #6e7681;
-    }
-
-    .nav-tab.active {
-      border-bottom-color: #f78166;
-      font-weight: 600;
-    }
-
-    /* Main Container */
-    .main-container {
-      display: flex;
-      flex: 1;
-      max-width: 1280px;
-      width: 100%;
-      margin: 0 auto;
-    }
-
-    /* Sidebar */
-    .sidebar {
-      width: 300px;
-      background: #0d1117;
-      border-right: 1px solid #21262d;
-      padding: 16px 0;
-      overflow-y: auto;
-      flex-shrink: 0;
-    }
-
-    .sidebar-header {
-      padding: 0 16px 8px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .sidebar-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #e6edf3;
-    }
-
-    .branch-selector {
-      background: #21262d;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 5px 8px;
-      color: #e6edf3;
-      font-size: 12px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .branch-selector:hover {
-      background: #30363d;
-    }
-
-    .search-box {
-      padding: 8px 16px;
-      position: sticky;
-      top: 0;
-      background: #0d1117;
-      z-index: 10;
-    }
-
-    .search-input {
-      width: 100%;
-      padding: 5px 12px;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      font-size: 14px;
-      color: #e6edf3;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: #58a6ff;
-    }
-
-    /* File Tree */
-    .file-tree {
-      padding: 0;
-    }
-
-    .tree-item {
-      display: flex;
-      align-items: center;
-      padding: 4px 8px 4px 16px;
-      cursor: pointer;
-      font-size: 14px;
-      color: #e6edf3;
-      border: none;
-      background: transparent;
-      width: 100%;
-      text-align: left;
-      position: relative;
-    }
-
-    .tree-item:hover {
-      background: #161b22;
-    }
-
-    .tree-item.active {
-      background: #1c2128;
-      font-weight: 600;
-    }
-
-    .tree-item.active::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: #58a6ff;
-    }
-
-    .tree-item-icon {
-      margin-right: 6px;
-      flex-shrink: 0;
-    }
-
-    .tree-item-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .tree-folder {
-      padding-left: 8px;
-    }
-
-    .tree-folder.expanded > .tree-item {
-      font-weight: 600;
-    }
-
-    .tree-children {
-      padding-left: 12px;
-    }
-
-    /* Content Area */
-    .content-area {
-      flex: 1;
-      background: #0d1117;
-      overflow-y: auto;
-    }
-
-    .file-header {
-      background: #0d1117;
-      border-bottom: 1px solid #21262d;
-      padding: 16px 24px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    .file-path {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 14px;
-      color: #58a6ff;
-      margin-bottom: 8px;
-    }
-
-    .file-path span {
-      cursor: pointer;
-    }
-
-    .file-path span:hover {
-      text-decoration: underline;
-    }
-
-    .file-path .separator {
-      color: #6e7681;
-      cursor: default;
-    }
-
-    .file-path .separator:hover {
-      text-decoration: none;
-    }
-
-    .file-info {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      color: #8b949e;
-    }
-
-    .file-meta {
-      display: flex;
-      gap: 16px;
-    }
-
-    .file-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .action-btn {
-      background: #21262d;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 5px 12px;
-      color: #e6edf3;
-      font-size: 12px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .action-btn:hover {
-      background: #30363d;
-    }
-
-    /* File Content */
-    .file-content {
-      padding: 24px;
-    }
-
-    .file-content pre {
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 16px;
-      overflow-x: auto;
-      margin: 0;
-    }
-
-    .file-content code {
-      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .file-content img {
-      max-width: 100%;
-      border-radius: 6px;
-      border: 1px solid #30363d;
-    }
-
-    /* Markdown Content */
-    .markdown-body {
-      font-size: 16px;
-      line-height: 1.6;
-      word-wrap: break-word;
-    }
-
-    .markdown-body h1,
-    .markdown-body h2,
-    .markdown-body h3,
-    .markdown-body h4,
-    .markdown-body h5,
-    .markdown-body h6 {
-      margin-top: 24px;
-      margin-bottom: 16px;
-      font-weight: 600;
-      line-height: 1.25;
-      color: #e6edf3;
-    }
-
-    .markdown-body h1 {
-      padding-bottom: 0.3em;
-      font-size: 2em;
-      border-bottom: 1px solid #21262d;
-    }
-
-    .markdown-body h2 {
-      padding-bottom: 0.3em;
-      font-size: 1.5em;
-      border-bottom: 1px solid #21262d;
-    }
-
-    .markdown-body p {
-      margin-top: 0;
-      margin-bottom: 16px;
-    }
-
-    .markdown-body a {
-      color: #58a6ff;
-      text-decoration: none;
-    }
-
-    .markdown-body a:hover {
-      text-decoration: underline;
-    }
-
-    .markdown-body ul,
-    .markdown-body ol {
-      margin-top: 0;
-      margin-bottom: 16px;
-      padding-left: 2em;
-    }
-
-    .markdown-body li {
-      margin-top: 0.25em;
-    }
-
-    .markdown-body code {
-      padding: 0.2em 0.4em;
-      margin: 0;
-      font-size: 85%;
-      background: #161b22;
-      border-radius: 6px;
-    }
-
-    .markdown-body pre {
-      padding: 16px;
-      overflow: auto;
-      font-size: 85%;
-      line-height: 1.45;
-      background: #161b22;
-      border-radius: 6px;
-      border: 1px solid #30363d;
-    }
-
-    .markdown-body pre code {
-      padding: 0;
-      background: transparent;
-    }
-
-    .markdown-body blockquote {
-      padding: 0 1em;
-      color: #8b949e;
-      border-left: 0.25em solid #30363d;
-      margin: 0 0 16px 0;
-    }
-
-    /* Empty State */
-    .empty-state {
-      text-align: center;
-      padding: 64px 24px;
-      color: #8b949e;
-    }
-
-    .empty-state-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
-    }
-
-    .empty-state-title {
-      font-size: 24px;
-      font-weight: 600;
-      color: #e6edf3;
-      margin-bottom: 8px;
-    }
-
-    .empty-state-desc {
-      font-size: 14px;
-    }
-
-    /* Config Screens */
-    .config-screen {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 16px;
-      flex: 1;
-    }
-
-    .config-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      padding: 32px;
-      max-width: 500px;
-      width: 100%;
-    }
-
-    .config-icon {
-      text-align: center;
-      margin-bottom: 16px;
-    }
-
-    .config-icon svg {
-      fill: #58a6ff;
-    }
-
-    .config-title {
-      text-align: center;
-      font-size: 24px;
-      font-weight: 400;
-      margin-bottom: 24px;
-      color: #e6edf3;
-    }
-
-    input[type="text"] {
-      width: 100%;
-      padding: 5px 12px;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      font-size: 14px;
-      color: #e6edf3;
-      line-height: 20px;
-      min-height: 32px;
-    }
-
-    input[type="text"]:focus {
-      outline: none;
-      border-color: #58a6ff;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 5px 16px;
-      background: #238636;
-      color: #ffffff;
-      border: 1px solid rgba(240, 246, 252, 0.1);
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      line-height: 20px;
-      margin-top: 16px;
-      min-height: 32px;
-      transition: background 0.2s;
-    }
-
-    .btn:hover:not(:disabled) {
-      background: #2ea043;
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .btn-secondary {
-      background: transparent;
-      color: #58a6ff;
-      padding: 5px 16px;
-      width: auto;
-      font-size: 14px;
-      border: 1px solid #30363d;
-      cursor: pointer;
-      border-radius: 6px;
-      font-weight: 500;
-      transition: all 0.2s;
-      min-height: 32px;
-    }
-
-    .btn-secondary:hover {
-      background: #30363d;
-      border-color: #8b949e;
-    }
-
-    /* Repo List */
-    .repo-list {
-      margin-top: 16px;
-      max-height: 500px;
-      overflow-y: auto;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-    }
-
-    .repo-list::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .repo-list::-webkit-scrollbar-track {
-      background: #161b22;
-    }
-
-    .repo-list::-webkit-scrollbar-thumb {
-      background: #30363d;
-      border-radius: 4px;
-    }
-
-    .repo-item {
-      padding: 16px;
-      border-bottom: 1px solid #30363d;
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-
-    .repo-item:last-child {
-      border-bottom: none;
-    }
-
-    .repo-item:hover {
-      background: #161b22;
-    }
-
-    .repo-name {
-      font-weight: 600;
-      font-size: 16px;
-      color: #58a6ff;
-      margin-bottom: 4px;
-    }
-
-    .repo-desc {
-      font-size: 12px;
-      color: #8b949e;
-      margin-bottom: 4px;
-    }
-
-    .repo-branch {
-      font-size: 12px;
-      color: #8b949e;
-    }
-
-    /* Error Message */
-    .error {
-      background: #1c1e23;
-      color: #f85149;
-      padding: 16px;
-      border-radius: 6px;
-      font-size: 14px;
-      margin: 16px;
-      border: 1px solid #f85149;
-    }
-
-    /* Footer */
-    .footer {
-      background: #161b22;
-      border-top: 1px solid #30363d;
-      padding: 24px 32px;
-      margin-top: auto;
-      text-align: center;
-    }
-
-    .footer-content {
-      color: #8b949e;
-      font-size: 12px;
-    }
-
-    /* Loading Spinner */
-    .loading-spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      vertical-align: text-bottom;
-      margin-right: 8px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    iframe, embed {
-      width: 100%;
-      height: calc(100vh - 200px);
-      border: 1px solid #30363d;
-      border-radius: 6px;
-    }
-
-    /* Responsive */
-    @media(max-width: 768px) {
-      .sidebar {
-        display: none;
-      }
-      
-      .gh-top-header {
-        padding: 12px 16px;
-      }
-      
-      .nav-tabs {
-        padding: 0 16px;
-      }
-      
-      .file-header, .file-content {
-        padding: 16px;
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GitHub Repo Browser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #0e1318;
+    --surface2: #141b24;
+    --border: #1e2a38;
+    --border-bright: #2a3a50;
+    --text: #c9d8e8;
+    --text-muted: #5a7089;
+    --text-dim: #3a5068;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59,130,246,0.15);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.1);
+    --red: #f87171;
+    --folder: #f59e0b;
+    --radius: 8px;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+  /* ── Noise texture overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  /* ══ LANDING SCREEN ══ */
+  .landing {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+  }
+
+  .landing::after {
+    content: '';
+    position: fixed;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .landing-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 40px 40px;
+    position: relative;
+    z-index: 1;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .landing-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .logo-mark {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 24px rgba(59,130,246,0.3);
+  }
+
+  .logo-mark svg { fill: white; }
+
+  .logo-text {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .landing-headline {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.04em;
+    color: #e8f0fe;
+    margin-bottom: 8px;
+  }
+
+  .landing-sub {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+    font-weight: 400;
+  }
+
+  .input-group {
+    margin-bottom: 12px;
+  }
+
+  .input-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--text-dim);
+    pointer-events: none;
+    font-size: 14px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 14px 12px 38px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  input[type="text"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  input[type="text"]::placeholder { color: var(--text-dim); }
+
+  .btn-primary {
+    width: 100%;
+    padding: 13px 20px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(59,130,246,0.3);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 28px rgba(59,130,246,0.4);
+  }
+
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .error-box {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: rgba(248,113,113,0.08);
+    border: 1px solid rgba(248,113,113,0.2);
+    border-radius: var(--radius);
+    color: var(--red);
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+
+  /* ══ REPO SELECT ══ */
+  .repo-select-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 24px;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  .repo-select-card {
+    width: 100%;
+    max-width: 580px;
+  }
+
+  .rs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .rs-title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .rs-title span { color: var(--accent); }
+
+  .btn-ghost {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-ghost:hover {
+    background: var(--surface2);
+    border-color: var(--border-bright);
+    color: var(--text);
+  }
+
+  .search-bar {
+    position: relative;
+    margin-bottom: 16px;
+  }
+
+  .search-bar input {
+    padding-left: 40px;
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .search-bar .input-icon { color: var(--text-muted); }
+
+  .repo-count {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    font-family: var(--mono);
+  }
+
+  .repo-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 65vh;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .repo-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .repo-card:hover {
+    border-color: var(--accent);
+    background: var(--surface2);
+    transform: translateX(2px);
+    box-shadow: -3px 0 0 var(--accent);
+  }
+
+  .repo-card-left { flex: 1; min-width: 0; }
+
+  .repo-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+    font-family: var(--mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .repo-card-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    font-family: var(--sans);
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .repo-card-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .branch-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    background: var(--green-dim);
+    color: var(--green);
+    border-radius: 20px;
+    border: 1px solid rgba(34,197,94,0.2);
+  }
+
+  .lang-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* ══ VIEWER LAYOUT ══ */
+  .viewer {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  /* Top bar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 50;
+  }
+
+  .topbar-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .topbar-logo-mark {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .topbar-logo-mark svg { fill: white; width: 16px; height: 16px; }
+
+  .topbar-repo-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 13px;
+    min-width: 0;
+  }
+
+  .topbar-user { color: var(--text-muted); }
+  .topbar-sep { color: var(--border-bright); }
+  .topbar-repo { color: var(--text); font-weight: 600; }
+
+  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+  .topbar-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .topbar-btn:hover {
+    background: var(--surface2);
+    border-color: var(--border-bright);
+    color: var(--text);
+  }
+
+  /* Breadcrumb bar */
+  .breadcrumb-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+
+  .breadcrumb-bar::-webkit-scrollbar { height: 0; }
+
+  .bc-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s;
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 3px 6px;
+    border-radius: 4px;
+  }
+
+  .bc-item:hover { background: var(--accent-glow); }
+
+  .bc-item.current {
+    color: var(--text);
+    cursor: default;
+    font-weight: 600;
+  }
+
+  .bc-item.current:hover { background: transparent; }
+
+  .bc-sep {
+    color: var(--text-dim);
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .bc-home-icon { font-size: 14px; }
+
+  /* Main panel split */
+  .panel-split {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 280px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-head {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .sidebar-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .sidebar-search {
+    position: relative;
+  }
+
+  .sidebar-search input {
+    font-size: 12px;
+    padding: 7px 10px 7px 32px;
+    background: var(--bg);
+    border-color: var(--border);
+    border-radius: 6px;
+  }
+
+  .sidebar-search .input-icon { left: 10px; font-size: 12px; }
+
+  .file-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+
+  /* Back entry for parent directory */
+  .back-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-family: var(--mono);
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: background 0.1s, color 0.1s;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .back-entry:hover { background: var(--surface2); color: var(--text); }
+
+  .back-icon { font-size: 12px; color: var(--text-dim); }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--text);
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: background 0.1s;
+    position: relative;
+  }
+
+  .file-item:hover { background: var(--surface2); }
+
+  .file-item.active {
+    background: var(--accent-glow);
+    color: #93c5fd;
+  }
+
+  .file-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--accent);
+  }
+
+  .file-item-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-item-icon { font-size: 14px; flex-shrink: 0; }
+
+  .folder-icon { color: var(--folder); }
+
+  .file-size {
+    font-size: 10px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  /* Content area */
+  .content-area {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .content-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    background: var(--surface);
+    gap: 12px;
+  }
+
+  .content-file-name {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .content-file-size {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .content-actions { display: flex; gap: 8px; }
+
+  .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+
+  .action-btn:hover {
+    border-color: var(--border-bright);
+    color: var(--text);
+    background: var(--border);
+  }
+
+  .content-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  /* Code view */
+  .code-container {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #0a0f14;
+  }
+
+  .code-container pre {
+    margin: 0;
+    padding: 20px;
+    overflow-x: auto;
+    background: transparent !important;
+  }
+
+  .code-container code {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    background: transparent !important;
+  }
+
+  /* Markdown */
+  .markdown-body {
+    max-width: 820px;
+    font-weight: 400;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  .markdown-body h1, .markdown-body h2, .markdown-body h3,
+  .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+    font-family: var(--sans);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #e8f0fe;
+    margin: 28px 0 14px;
+    line-height: 1.2;
+  }
+
+  .markdown-body h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+  .markdown-body h2 { font-size: 1.45em; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .markdown-body h3 { font-size: 1.15em; }
+
+  .markdown-body p { margin-bottom: 16px; }
+
+  .markdown-body a { color: var(--accent); text-decoration: none; }
+  .markdown-body a:hover { text-decoration: underline; }
+
+  .markdown-body code {
+    font-family: var(--mono);
+    font-size: 85%;
+    padding: 2px 6px;
+    background: var(--surface2);
+    border-radius: 4px;
+    color: #93c5fd;
+  }
+
+  .markdown-body pre {
+    background: #0a0f14;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+  }
+
+  .markdown-body pre code {
+    background: none;
+    padding: 0;
+    font-size: 13px;
+    color: inherit;
+  }
+
+  .markdown-body ul, .markdown-body ol {
+    margin-bottom: 16px;
+    padding-left: 1.6em;
+  }
+
+  .markdown-body li { margin-bottom: 4px; }
+
+  .markdown-body blockquote {
+    padding: 10px 16px;
+    border-left: 3px solid var(--accent);
+    color: var(--text-muted);
+    margin: 0 0 16px;
+    background: var(--accent-glow);
+    border-radius: 0 6px 6px 0;
+  }
+
+  .markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+
+  .markdown-body th, .markdown-body td {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    text-align: left;
+  }
+
+  .markdown-body th {
+    background: var(--surface2);
+    font-weight: 600;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .markdown-body img { max-width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
+
+  /* Empty state */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-dim);
+    gap: 12px;
+    padding: 40px;
+    text-align: center;
+  }
+
+  .empty-icon { font-size: 52px; opacity: 0.4; }
+
+  .empty-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: -0.02em;
+  }
+
+  .empty-desc { font-size: 13px; max-width: 280px; line-height: 1.5; }
+
+  /* Loading */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  /* Image */
+  .img-view {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .img-view img {
+    max-width: 100%;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+
+  /* Footer */
+  .footer {
+    padding: 16px 20px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    letter-spacing: 0.04em;
+    font-family: var(--mono);
+    flex-shrink: 0;
+  }
+
+  /* No-sidebar mobile */
+  @media (max-width: 720px) {
+    .sidebar { display: none; }
+  }
+
+  iframe, embed {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: var(--radius);
+  }
+</style>
 </head>
 <body>
-  <div id="app"></div>
+<div id="app"></div>
 
-  <script>
-    var app = {
-      step: 'username',
-      username: '',
-      repos: [],
-      selectedRepo: null,
-      selectedBranch: 'main',
-      files: [],
-      currentPath: '',
-      selectedFile: null,
-      content: '',
-      loading: false,
-      error: '',
-      searchTerm: '',
-      expandedFolders: {}
-    };
+<script>
+var S = {
+  step: 'username',      // username | repo-select | viewing
+  username: '',
+  repos: [],
+  repoSearch: '',
+  selectedRepo: null,
+  selectedBranch: 'main',
+  files: [],
+  currentPath: '',       // current folder path e.g. "src/components"
+  selectedFile: null,
+  content: '',
+  loading: false,
+  error: '',
+  fileSearch: '',
+};
 
-    function fetchRepos() {
-      app.loading = true; app.error = ''; render();
-      fetch(`https://api.github.com/users/${app.username}/repos?per_page=100&sort=updated`)
-        .then(r => {
-          if (!r.ok) throw new Error('User not found or API limit reached');
-          return r.json();
-        })
-        .then(data => {
-          app.repos = data;
-          app.step = 'repo-select';
-          app.loading = false;
-          render();
-        })
-        .catch(err => {
-          app.error = err.message;
-          app.loading = false;
-          render();
-        });
-    }
+/* ─── History stack for back navigation ─── */
+var pathHistory = [];   // array of previous paths
 
-    function fetchFiles(path) {
-      app.loading = true; app.error = ''; render();
-      const url = `https://api.github.com/repos/${app.username}/${app.selectedRepo.name}/contents/${path}?ref=${app.selectedBranch}`;
-      fetch(url)
-        .then(r => {
-          if (!r.ok) throw new Error('Failed to fetch files for this repository.');
-          return r.json();
-        })
-        .then(data => {
-          app.files = data;
-          app.loading = false;
-          render();
-        })
-        .catch(err => {
-          app.error = err.message;
-          app.files = [];
-          app.loading = false;
-          render();
-        });
-    }
+/* ─── API helpers ─── */
+function api(url) {
+  return fetch(url).then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  });
+}
 
-    function fetchContent(file) {
-      app.loading = true;
-      app.error = '';
+function fetchRepos() {
+  S.loading = true; S.error = ''; render();
+  api(`https://api.github.com/users/${S.username}/repos?per_page=100&sort=updated`)
+    .then(data => { S.repos = data; S.step = 'repo-select'; S.loading = false; render(); })
+    .catch(e => { S.error = 'User not found or API rate limit reached.'; S.loading = false; render(); });
+}
+
+function fetchFiles(path, pushHistory) {
+  if (pushHistory === true && path !== S.currentPath) {
+    pathHistory.push(S.currentPath);
+  }
+  S.loading = true; S.error = ''; S.fileSearch = ''; render();
+  const url = `https://api.github.com/repos/${S.username}/${S.selectedRepo.name}/contents/${path}?ref=${S.selectedBranch}`;
+  api(url)
+    .then(data => {
+      S.files = Array.isArray(data) ? data : [data];
+      S.currentPath = path;
+      S.loading = false;
       render();
+    })
+    .catch(e => { S.error = 'Failed to load directory.'; S.loading = false; render(); });
+}
 
-      fetch(file.download_url)
-        .then(r => {
-          if (!r.ok) throw new Error('Failed to fetch file content');
-          return r.text();
-        })
-        .then(text => {
-          app.content = text;
-          app.selectedFile = file;
-          app.loading = false;
-          render();
-        })
-        .catch(err => {
-          app.error = err.message;
-          app.loading = false;
-          render();
-        });
-    }
+function fetchContent(file) {
+  S.loading = true; S.error = ''; render();
+  fetch(file.download_url)
+    .then(r => { if (!r.ok) throw new Error(); return r.text(); })
+    .then(text => { S.content = text; S.selectedFile = file; S.loading = false; render(); })
+    .catch(() => { S.error = 'Failed to load file content.'; S.loading = false; render(); });
+}
 
-    function handleFileClick(file) {
-      if (file.type === 'dir') {
-        app.currentPath = file.path;
-        app.selectedFile = null;
-        fetchFiles(app.currentPath);
+/* ─── Actions ─── */
+function handleFileClick(file) {
+  if (file.type === 'dir') {
+    S.selectedFile = null;
+    fetchFiles(file.path, true);
+  } else {
+    S.selectedFile = file;
+    fetchContent(file);
+    render(); // show active state immediately
+  }
+}
+
+function goBack() {
+  if (pathHistory.length === 0) return;
+  var prev = pathHistory.pop();
+  S.selectedFile = null;
+  fetchFiles(prev, false);
+}
+
+function goHome() {
+  pathHistory = [];
+  S.selectedFile = null;
+  fetchFiles('', false);
+}
+
+function navigateTo(index) {
+  // index -1 = root, 0..n = parts of currentPath
+  var parts = S.currentPath ? S.currentPath.split('/') : [];
+  var target = index === -1 ? '' : parts.slice(0, index + 1).join('/');
+  if (target === S.currentPath) return;
+  pathHistory.push(S.currentPath);
+  S.selectedFile = null;
+  fetchFiles(target, false);
+}
+
+function selectRepo(repo) {
+  S.selectedRepo = repo;
+  S.selectedBranch = repo.default_branch || 'main';
+  S.step = 'viewing';
+  S.currentPath = '';
+  S.selectedFile = null;
+  S.content = '';
+  pathHistory = [];
+  fetchFiles('', false);
+}
+
+function changeRepo() {
+  S.step = 'repo-select';
+  S.selectedFile = null;
+  S.content = '';
+  S.currentPath = '';
+  pathHistory = [];
+  render();
+}
+
+function downloadFile() {
+  if (!S.selectedFile) return;
+  fetch(S.selectedFile.download_url)
+    .then(r => r.blob())
+    .then(blob => {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = S.selectedFile.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+}
+
+function copyContent() {
+  if (S.content) navigator.clipboard.writeText(S.content).catch(() => {});
+}
+
+/* ─── Filtered lists ─── */
+function filteredFiles() {
+  var term = S.fileSearch.toLowerCase();
+  return S.files.filter(f => f.name.toLowerCase().includes(term));
+}
+
+function filteredRepos() {
+  var term = S.repoSearch.toLowerCase();
+  return S.repos.filter(r => r.name.toLowerCase().includes(term) ||
+    (r.description && r.description.toLowerCase().includes(term)));
+}
+
+/* ─── File icon ─── */
+function fileIcon(f) {
+  if (f.type === 'dir') return '<span class="file-item-icon folder-icon">📁</span>';
+  var n = f.name.toLowerCase();
+  if (/\.(js|ts|jsx|tsx)$/.test(n)) return '<span class="file-item-icon">🟨</span>';
+  if (/\.(py)$/.test(n))   return '<span class="file-item-icon">🐍</span>';
+  if (/\.(md|mdx)$/.test(n)) return '<span class="file-item-icon">📝</span>';
+  if (/\.(json)$/.test(n)) return '<span class="file-item-icon">🔵</span>';
+  if (/\.(html)$/.test(n)) return '<span class="file-item-icon">🌐</span>';
+  if (/\.(css|scss)$/.test(n)) return '<span class="file-item-icon">🎨</span>';
+  if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)) return '<span class="file-item-icon">🖼️</span>';
+  if (/\.(sh|bash)$/.test(n)) return '<span class="file-item-icon">⚡</span>';
+  if (/\.(yml|yaml)$/.test(n)) return '<span class="file-item-icon">⚙️</span>';
+  return '<span class="file-item-icon">📄</span>';
+}
+
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + 'K';
+  return (bytes/1048576).toFixed(1) + 'M';
+}
+
+/* ─── Render file content ─── */
+function renderFileContent() {
+  var el = document.getElementById('file-view');
+  if (!el || !S.selectedFile) return;
+  var n = S.selectedFile.name.toLowerCase();
+
+  if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)) {
+    el.innerHTML = `<div class="img-view"><img src="${S.selectedFile.download_url}" alt="${S.selectedFile.name}" /></div>`;
+    return;
+  }
+  if (n.endsWith('.pdf')) {
+    el.innerHTML = `<embed src="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(S.selectedFile.download_url)}" type="application/pdf" style="height:100%;min-height:600px;"></embed>`;
+    return;
+  }
+  if (/\.(md|markdown|mdx)$/i.test(n)) {
+    el.innerHTML = `<div class="markdown-body">${marked.parse(S.content)}</div>`;
+    hljs.highlightAll();
+    return;
+  }
+  // code
+  var ext = n.split('.').pop() || 'text';
+  var escaped = S.content.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  el.innerHTML = `<div class="code-container"><pre><code class="language-${ext}">${escaped}</code></pre></div>`;
+  hljs.highlightAll();
+}
+
+/* ─── Breadcrumb HTML ─── */
+function breadcrumbHTML() {
+  var html = `<button class="bc-item" onclick="goHome()"><span class="bc-home-icon">🏠</span> ${esc(S.selectedRepo.name)}</button>`;
+  if (!S.currentPath) {
+    // already at root, make current
+    html = `<button class="bc-item current"><span class="bc-home-icon">🏠</span> ${esc(S.selectedRepo.name)}</button>`;
+  } else {
+    var parts = S.currentPath.split('/');
+    parts.forEach(function(part, i) {
+      html += `<span class="bc-sep">›</span>`;
+      if (i === parts.length - 1 && !S.selectedFile) {
+        html += `<span class="bc-item current">${esc(part)}</span>`;
       } else {
-        app.selectedFile = file;
-        fetchContent(file);
+        html += `<button class="bc-item" onclick="navigateTo(${i})">${esc(part)}</button>`;
       }
+    });
+    if (S.selectedFile) {
+      html += `<span class="bc-sep">›</span><span class="bc-item current">📄 ${esc(S.selectedFile.name)}</span>`;
     }
+  }
+  return html;
+}
 
-    function navigateBreadcrumb(index) {
-      if (index === -1) {
-        app.currentPath = '';
-      } else {
-        const parts = app.currentPath.split('/');
-        app.currentPath = parts.slice(0, index + 1).join('/');
-      }
-      app.selectedFile = null;
-      fetchFiles(app.currentPath);
-    }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-    function selectRepo(repo) {
-      app.selectedRepo = repo;
-      app.selectedBranch = repo.default_branch || 'main';
-      app.step = 'viewing';
-      app.currentPath = '';
-      app.expandedFolders = {};
-      fetchFiles('');
-    }
+/* ─── Main render ─── */
+function render() {
+  var el = document.getElementById('app');
 
-    function handleFetchRepos() {
-      app.username = document.getElementById('username').value.trim();
-      if (app.username) fetchRepos();
-    }
-
-    function changeRepo() {
-      app.step = 'repo-select';
-      app.selectedFile = null;
-      app.content = '';
-      app.currentPath = '';
-      app.expandedFolders = {};
-      render();
-    }
-
-    function handleSearch(e) {
-      app.searchTerm = e.target.value;
-      render();
-    }
-
-    function getFilteredFiles() {
-      return app.files.filter(f => f.name.toLowerCase().includes(app.searchTerm.toLowerCase()));
-    }
-
-    function renderFileContent() {
-      const file = app.selectedFile;
-      const container = document.getElementById("file-view");
-      if (!file || !container) return;
-
-      const name = file.name.toLowerCase();
-
-      // PDF Viewer
-      if (name.endsWith(".pdf")) {
-        container.innerHTML = `<embed src="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(file.download_url)}" type="application/pdf"></embed>`;
-        return;
-      }
-
-      // Images
-      if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(name)) {
-        container.innerHTML = `<img src="${file.download_url}" alt="${file.name}" />`;
-        return;
-      }
-
-      // Markdown
-      if (/\.(md|markdown|mdx)$/i.test(name)) {
-        container.innerHTML = `<div class="markdown-body">${marked.parse(app.content)}</div>`;
-        hljs.highlightAll();
-        return;
-      }
-
-      // Code
-      if (/\.(js|py|java|cpp|c|html|css|json|txt|sh|xml|yml|yaml|sql|jsx|tsx|ts)$/i.test(name)) {
-        const ext = name.split('.').pop();
-        container.innerHTML = `<pre><code class="language-${ext}">${app.content.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</code></pre>`;
-        hljs.highlightAll();
-        return;
-      }
-
-      // Fallback
-      container.innerHTML = `<pre><code>${app.content}</code></pre>`;
-    }
-
-    function renderBreadcrumb() {
-      if (!app.currentPath) return `<strong>${app.selectedRepo.name}</strong>`;
-      const parts = app.currentPath.split('/');
-      let html = `<span onclick="navigateBreadcrumb(-1)">${app.selectedRepo.name}</span>`;
-      parts.forEach((part, i) => {
-        html += ` <span class="separator">/</span> `;
-        if (i === parts.length - 1) {
-          html += `<strong>${part}</strong>`;
-        } else {
-          html += `<span onclick="navigateBreadcrumb(${i})">${part}</span>`;
-        }
-      });
-      return html;
-    }
-
-    function renderFileTree() {
-      const files = getFilteredFiles();
-      const dirs = files.filter(f => f.type === 'dir').sort((a, b) => a.name.localeCompare(b.name));
-      const docs = files.filter(f => f.type === 'file').sort((a, b) => a.name.localeCompare(b.name));
-
-      let html = '';
-      
-      dirs.forEach(d => {
-        const icon = '📁';
-        html += `<button class="tree-item" onclick='handleFileClick(${JSON.stringify(d)})'>
-          <span class="tree-item-icon">${icon}</span>
-          <span class="tree-item-name">${d.name}</span>
-        </button>`;
-      });
-
-      docs.forEach(f => {
-        const isActive = app.selectedFile && app.selectedFile.path === f.path;
-        const icon = '📄';
-        html += `<button class="tree-item ${isActive ? 'active' : ''}" onclick='handleFileClick(${JSON.stringify(f)})'>
-          <span class="tree-item-icon">${icon}</span>
-          <span class="tree-item-name">${f.name}</span>
-        </button>`;
-      });
-
-      return html;
-    }
-
-    // ⭐ NEW: Download current opened file
-    function downloadCurrentFile() {
-      if (!app.selectedFile) return;
-
-      const file = app.selectedFile;
-
-      // Use fetch + blob so it works well even for binary files
-      fetch(file.download_url)
-        .then(response => {
-          if (!response.ok) throw new Error('Failed to download file');
-          return response.blob();
-        })
-        .then(blob => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = file.name; // keeps original file name
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          window.URL.revokeObjectURL(url);
-        })
-        .catch(err => {
-          app.error = err.message;
-          render();
-        });
-    }
-
-    function render() {
-      const el = document.getElementById('app');
-
-      if (app.step === 'username') {
-        el.innerHTML = `
-          <div class="config-screen">
-            <div class="config-card">
-              <div class="config-icon">
-                <svg height="48" viewBox="0 0 16 16" width="48">
-                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-                </svg>
-              </div>
-              <h1 class="config-title">GitHub Repository Viewer</h1>
-              <input type="text" id="username" value="${app.username}" placeholder="Enter GitHub username">
-              <button class="btn" onclick="handleFetchRepos()" ${app.loading ? 'disabled' : ''}>
-                ${app.loading ? '<span class="loading-spinner"></span>Loading...' : 'Fetch Repositories'}
-              </button>
-              ${app.error ? `<div class="error">${app.error}</div>` : ''}
-            </div>
+  /* STEP 1: Username */
+  if (S.step === 'username') {
+    el.innerHTML = `
+    <div class="landing">
+      <div class="landing-card">
+        <div class="landing-logo">
+          <div class="logo-mark">
+            <svg height="20" viewBox="0 0 16 16" width="20">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
           </div>
-          <div class="footer">
-            <div class="footer-content">Made by Hardik</div>
-          </div>`;
-        return;
-      }
-
-      if (app.step === 'repo-select') {
-        const reposHtml = app.repos.map(r => `
-          <div class="repo-item" onclick='selectRepo(${JSON.stringify(r)})'>
-            <div class="repo-name">${r.name}</div>
-            ${r.description ? `<div class="repo-desc">${r.description}</div>` : ''}
-            <div class="repo-branch">Default branch: ${r.default_branch || 'main'}</div>
-          </div>
-        `).join('');
-        el.innerHTML = `
-          <div class="config-screen">
-            <div class="config-card">
-              <h1 class="config-title">Select Repository</h1>
-              <button class="btn-secondary" onclick="app.step='username';render()">← Back to Username</button>
-              <div class="repo-list">${reposHtml || '<div style="padding: 16px; text-align: center; color: #8b949e;">No repositories found</div>'}</div>
-            </div>
-          </div>
-          <div class="footer">
-            <div class="footer-content">Made by Hardik</div>
-          </div>`;
-        return;
-      }
-
-      // Main viewing interface
-      el.innerHTML = `
-        <div class="gh-top-header">
-          <div class="gh-top-header-inner">
-            <div class="gh-logo">
-              <svg height="32" viewBox="0 0 16 16" width="32">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-              </svg>
-            </div>
-            <a class="gh-repo-link">
-              <span>${app.username}</span>
-              <span class="gh-divider">/</span>
-              <strong>${app.selectedRepo.name}</strong>
-            </a>
-            <button class="btn-secondary" onclick="changeRepo()">Change Repository</button>
+          <span class="logo-text">Repo<span>Browser</span></span>
+        </div>
+        <h1 class="landing-headline">Browse any GitHub repo</h1>
+        <p class="landing-sub">Navigate files, read code, view READMEs — all without leaving this page.</p>
+        <div class="input-group">
+          <label class="input-label">GitHub Username</label>
+          <div class="input-wrap">
+            <span class="input-icon">@</span>
+            <input type="text" id="username" value="${esc(S.username)}" placeholder="e.g. torvalds"
+              onkeydown="if(event.key==='Enter')handleFetchRepos()">
           </div>
         </div>
+        <button class="btn-primary" onclick="handleFetchRepos()" ${S.loading ? 'disabled' : ''}>
+          ${S.loading ? '<span class="spinner"></span> Fetching...' : '→ Fetch Repositories'}
+        </button>
+        ${S.error ? `<div class="error-box">⚠ ${esc(S.error)}</div>` : ''}
+      </div>
+    </div>
+    <div class="footer">Made by Hardik · Enhanced fork</div>`;
+    setTimeout(() => { var u = document.getElementById('username'); if(u) u.focus(); }, 50);
+    return;
+  }
 
-        <div class="nav-tabs">
-          <div class="nav-tabs-inner">
-            <div class="nav-tab active">
-              <svg height="16" viewBox="0 0 16 16" width="16" fill="currentColor">
-                <path d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 110-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 01-1.072 1.05A2.495 2.495 0 012 11.5v-9zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 011-1h8zM5 12.25v3.25a.25.25 0 00.4.2l1.45-1.087a.25.25 0 01.3 0L8.6 15.7a.25.25 0 00.4-.2v-3.25a.25.25 0 00-.25-.25h-3.5a.25.25 0 00-.25.25z"></path>
-              </svg>
-              Code
-            </div>
+  /* STEP 2: Repo select */
+  if (S.step === 'repo-select') {
+    var reps = filteredRepos();
+    var reposHTML = reps.map(function(r) {
+      return `<div class="repo-card" onclick='selectRepoById("${esc(r.name)}")'>
+        <div class="repo-card-left">
+          <div class="repo-card-name">${esc(r.name)}</div>
+          ${r.description ? `<div class="repo-card-desc">${esc(r.description)}</div>` : '<div class="repo-card-desc" style="color:var(--text-dim)">No description</div>'}
+        </div>
+        <div class="repo-card-meta">
+          <span class="branch-tag">${esc(r.default_branch || 'main')}</span>
+          ${r.language ? `<span class="lang-tag">${esc(r.language)}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+    <div class="repo-select-screen">
+      <div class="repo-select-card">
+        <div class="rs-header">
+          <div class="rs-title">Repos of <span>${esc(S.username)}</span></div>
+          <button class="btn-ghost" onclick="S.step='username';render()">← Back</button>
+        </div>
+        <div class="search-bar">
+          <span class="input-icon" style="top:50%;transform:translateY(-50%)">🔍</span>
+          <input type="text" id="repoSearch" value="${esc(S.repoSearch)}" placeholder="Filter repos…"
+            oninput="S.repoSearch=this.value;render()">
+        </div>
+        <div class="repo-count">${reps.length} of ${S.repos.length} repos</div>
+        <div class="repo-grid">
+          ${reposHTML || '<div style="padding:24px;text-align:center;color:var(--text-dim)">No repos match</div>'}
+        </div>
+      </div>
+    </div>
+    <div class="footer">Made by Hardik · Enhanced fork</div>`;
+    return;
+  }
+
+  /* STEP 3: Viewer */
+  var canGoBack = pathHistory.length > 0;
+  var files = filteredFiles();
+  var dirs = files.filter(f => f.type === 'dir').sort((a,b) => a.name.localeCompare(b.name));
+  var docs = files.filter(f => f.type === 'file').sort((a,b) => a.name.localeCompare(b.name));
+
+  var sidebarItems = '';
+
+  // Back button when inside a subfolder
+  if (S.currentPath) {
+    var parentLabel = pathHistory.length > 0 && pathHistory[pathHistory.length-1] !== ''
+      ? '../' + (pathHistory[pathHistory.length-1].split('/').pop() || S.selectedRepo.name)
+      : '/ ' + S.selectedRepo.name;
+    sidebarItems += `<button class="back-entry" onclick="goBack()">
+      <span class="back-icon">←</span> ${esc(parentLabel)}
+    </button>`;
+  }
+
+  dirs.forEach(function(d) {
+    sidebarItems += `<button class="file-item" onclick='handleFileClick(${JSON.stringify(d)})'>
+      ${fileIcon(d)}<span class="file-item-name">${esc(d.name)}</span>
+      <span class="file-item-icon" style="color:var(--text-dim);font-size:11px">›</span>
+    </button>`;
+  });
+
+  docs.forEach(function(f) {
+    var active = S.selectedFile && S.selectedFile.path === f.path;
+    sidebarItems += `<button class="file-item ${active ? 'active' : ''}" onclick='handleFileClick(${JSON.stringify(f)})'>
+      ${fileIcon(f)}<span class="file-item-name">${esc(f.name)}</span>
+      ${f.size ? `<span class="file-size">${fmtSize(f.size)}</span>` : ''}
+    </button>`;
+  });
+
+  var contentHTML = '';
+  if (S.loading) {
+    contentHTML = `<div class="loading-overlay"><span class="spinner"></span> Loading…</div>`;
+  } else if (S.selectedFile) {
+    contentHTML = `
+    <div class="content-header">
+      <div class="content-file-name">
+        ${fileIcon(S.selectedFile)} ${esc(S.selectedFile.name)}
+        ${S.selectedFile.size ? `<span class="content-file-size">${fmtSize(S.selectedFile.size)}</span>` : ''}
+      </div>
+      <div class="content-actions">
+        <button class="action-btn" onclick="copyContent()">⎘ Copy</button>
+        <button class="action-btn" onclick="downloadFile()">↓ Download</button>
+        <a href="${S.selectedFile.html_url}" target="_blank" class="action-btn" style="text-decoration:none">↗ GitHub</a>
+      </div>
+    </div>
+    <div class="content-body"><div id="file-view"></div></div>`;
+  } else {
+    contentHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">📂</div>
+      <div class="empty-title">${esc(S.currentPath ? S.currentPath.split('/').pop() : S.selectedRepo.name)}</div>
+      <div class="empty-desc">Select a file from the sidebar to view its contents.</div>
+    </div>`;
+  }
+
+  el.innerHTML = `
+  <div class="viewer">
+    <div class="topbar">
+      <div class="topbar-logo">
+        <div class="topbar-logo-mark">
+          <svg height="16" viewBox="0 0 16 16" width="16">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+        </div>
+      </div>
+      <div class="topbar-repo-info">
+        <span class="topbar-user">${esc(S.username)}</span>
+        <span class="topbar-sep">/</span>
+        <span class="topbar-repo">${esc(S.selectedRepo.name)}</span>
+      </div>
+      <div class="topbar-actions">
+        ${canGoBack ? `<button class="topbar-btn" onclick="goBack()">← Back</button>` : ''}
+        <button class="topbar-btn" onclick="goHome()">⌂ Root</button>
+        <button class="topbar-btn" onclick="changeRepo()">⇄ Change Repo</button>
+        <button class="topbar-btn" onclick="S.step='username';render()">⏎ Change User</button>
+      </div>
+    </div>
+
+    <div class="breadcrumb-bar">
+      ${breadcrumbHTML()}
+    </div>
+
+    <div class="panel-split">
+      <div class="sidebar">
+        <div class="sidebar-head">
+          <div class="sidebar-title">Files</div>
+          <div class="sidebar-search">
+            <span class="input-icon" style="top:50%;transform:translateY(-50%)">🔍</span>
+            <input type="text" id="fileSearch" value="${esc(S.fileSearch)}" placeholder="Filter files…"
+              oninput="S.fileSearch=this.value;render()">
           </div>
         </div>
-
-        <div class="main-container">
-          <div class="sidebar">
-            <div class="sidebar-header">
-              <div class="sidebar-title">Files</div>
-              <div class="branch-selector">
-                🔀 ${app.selectedBranch}
-              </div>
-            </div>
-            <div class="search-box">
-              <input type="text" class="search-input" placeholder="Go to file" value="${app.searchTerm}" oninput="handleSearch(event)">
-            </div>
-            ${app.error ? `<div class="error">${app.error}</div>` : ''}
-            <div class="file-tree">
-              ${renderFileTree()}
-            </div>
-          </div>
-
-          <div class="content-area">
-            ${app.selectedFile ? `
-              <div class="file-header">
-                <div class="file-path">${renderBreadcrumb()}</div>
-                <div class="file-info">
-                  <div class="file-meta">
-                    <span>${app.files.length} files</span>
-                  </div>
-                  <div class="file-actions">
-                    <!-- ⭐ NEW: Download button -->
-                    <button class="action-btn" onclick="downloadCurrentFile()">⬇ Download</button>
-                    <button class="action-btn" onclick="app.selectedFile=null;app.content='';render()">← Back to files</button>
-                  </div>
-                </div>
-              </div>
-              <div class="file-content">
-                <div id="file-view"></div>
-              </div>
-            ` : `
-              <div class="empty-state">
-                <div class="empty-state-icon">📂</div>
-                <div class="empty-state-title">Select a file to view</div>
-                <div class="empty-state-desc">Choose a file from the sidebar to see its contents</div>
-              </div>
-            `}
-          </div>
+        <div class="file-list">
+          ${S.loading ? `<div style="padding:20px;text-align:center;color:var(--text-dim)"><span class="spinner"></span></div>` : sidebarItems}
+          ${S.error ? `<div class="error-box" style="margin:12px">${esc(S.error)}</div>` : ''}
         </div>
+      </div>
 
-        <div class="footer">
-          <div class="footer-content">Made by Hardik</div>
-        </div>
-      `;
+      <div class="content-area">
+        ${contentHTML}
+      </div>
+    </div>
 
-      if (app.selectedFile && app.content) renderFileContent();
-    }
+    <div class="footer">Made by Hardik · Enhanced with navigation</div>
+  </div>`;
 
-    render();
-  </script>
+  if (S.selectedFile && !S.loading) {
+    renderFileContent();
+  }
+}
+
+/* ─── Event handlers accessible from HTML ─── */
+function handleFetchRepos() {
+  var u = document.getElementById('username');
+  S.username = (u ? u.value : S.username).trim();
+  if (S.username) fetchRepos();
+}
+
+function selectRepoById(name) {
+  var repo = S.repos.find(r => r.name === name);
+  if (repo) selectRepo(repo);
+}
+
+render();
+</script>
 </body>
 </html>
