@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>GitHub Repo Browser</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
@@ -28,1108 +28,707 @@
     --radius: 8px;
     --mono: 'JetBrains Mono', monospace;
     --sans: 'Syne', sans-serif;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --bnav: 58px;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; }
 
   body {
     font-family: var(--sans);
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    min-height: 100%;
     overflow-x: hidden;
   }
 
-  /* ── Scrollbar ── */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border-bright); border-radius:3px; }
 
-  /* ── Noise texture overlay ── */
   body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 9999;
-    opacity: 0.4;
-  }
-
-  /* ══ LANDING SCREEN ══ */
-  .landing {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    position: relative;
-  }
-
-  .landing::after {
-    content: '';
-    position: fixed;
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
-
-  .landing-card {
-    width: 100%;
-    max-width: 480px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 48px 40px 40px;
-    position: relative;
-    z-index: 1;
-    animation: fadeUp 0.5s ease both;
+    content:''; position:fixed; inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events:none; z-index:9999; opacity:0.4;
   }
 
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity:0; transform:translateY(18px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ══ SPINNER ══ */
+  .spinner {
+    display:inline-block; width:14px; height:14px;
+    border:2px solid rgba(255,255,255,0.15); border-top-color:var(--accent);
+    border-radius:50%; animation:spin 0.6s linear infinite;
+    vertical-align:middle; flex-shrink:0;
   }
 
-  .landing-logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 32px;
+  /* ══ SHARED INPUTS ══ */
+  input[type="text"] {
+    width:100%; padding:12px 14px 12px 38px;
+    background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
+    font-family:var(--mono); font-size:16px; /* 16px prevents iOS zoom */
+    color:var(--text); outline:none; -webkit-appearance:none;
+    transition:border-color .2s, box-shadow .2s;
   }
-
-  .logo-mark {
-    width: 40px; height: 40px;
-    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 24px rgba(59,130,246,0.3);
-  }
-
-  .logo-mark svg { fill: white; }
-
-  .logo-text {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.02em;
-  }
-
-  .logo-text span { color: var(--accent); }
-
-  .landing-headline {
-    font-size: 28px;
-    font-weight: 800;
-    line-height: 1.2;
-    letter-spacing: -0.04em;
-    color: #e8f0fe;
-    margin-bottom: 8px;
-  }
-
-  .landing-sub {
-    font-size: 14px;
-    color: var(--text-muted);
-    margin-bottom: 32px;
-    font-weight: 400;
-  }
-
-  .input-group {
-    margin-bottom: 12px;
-  }
-
-  .input-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-  }
-
-  .input-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
+  input[type="text"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+  input[type="text"]::placeholder { color:var(--text-dim); }
 
   .input-icon {
-    position: absolute;
-    left: 14px;
-    color: var(--text-dim);
-    pointer-events: none;
-    font-size: 14px;
+    position:absolute; left:13px; color:var(--text-dim);
+    pointer-events:none; font-size:14px;
+  }
+  .input-wrap { position:relative; display:flex; align-items:center; }
+  .input-label {
+    display:block; font-size:11px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;
   }
 
-  input[type="text"] {
-    width: 100%;
-    padding: 12px 14px 12px 38px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    font-family: var(--mono);
-    font-size: 14px;
-    color: var(--text);
-    transition: border-color 0.2s, box-shadow 0.2s;
-    outline: none;
+  /* ══ LANDING ══ */
+  .landing {
+    min-height:100vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; padding:20px 16px; position:relative;
   }
-
-  input[type="text"]:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
+  .landing::after {
+    content:''; position:fixed; width:500px; height:500px;
+    background:radial-gradient(circle, rgba(59,130,246,.08) 0%, transparent 70%);
+    top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none;
   }
+  .landing-card {
+    width:100%; max-width:440px; background:var(--surface);
+    border:1px solid var(--border); border-radius:16px;
+    padding:36px 28px 32px; position:relative; z-index:1;
+    animation:fadeUp .5s ease both;
+  }
+  @media(max-width:480px){ .landing-card{ padding:26px 18px 24px; border-radius:14px; } }
 
-  input[type="text"]::placeholder { color: var(--text-dim); }
+  .landing-logo { display:flex; align-items:center; gap:10px; margin-bottom:24px; }
+  .logo-mark {
+    width:36px; height:36px; flex-shrink:0;
+    background:linear-gradient(135deg,#1d4ed8,#3b82f6); border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 20px rgba(59,130,246,.3);
+  }
+  .logo-mark svg { fill:white; }
+  .logo-text { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-.02em; }
+  .logo-text span { color:var(--accent); }
+
+  .landing-headline {
+    font-size:26px; font-weight:800; line-height:1.2;
+    letter-spacing:-.04em; color:#e8f0fe; margin-bottom:8px;
+  }
+  @media(max-width:380px){ .landing-headline{ font-size:22px; } }
+  .landing-sub { font-size:14px; color:var(--text-muted); margin-bottom:28px; line-height:1.5; }
+
+  .input-group { margin-bottom:10px; }
 
   .btn-primary {
-    width: 100%;
-    padding: 13px 20px;
-    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
-    color: white;
-    border: none;
-    border-radius: var(--radius);
-    font-family: var(--sans);
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 20px;
-    transition: all 0.2s;
-    box-shadow: 0 4px 20px rgba(59,130,246,0.3);
+    width:100%; padding:14px 20px;
+    background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+    color:#fff; border:none; border-radius:var(--radius);
+    font-family:var(--sans); font-size:15px; font-weight:700; letter-spacing:.02em;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+    margin-top:18px; min-height:50px;
+    box-shadow:0 4px 20px rgba(59,130,246,.3);
+    transition:box-shadow .2s, transform .15s;
   }
-
-  .btn-primary:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 28px rgba(59,130,246,0.4);
-  }
-
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-primary:active { transform:scale(.98); box-shadow:0 2px 10px rgba(59,130,246,.2); }
+  .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
 
   .error-box {
-    margin-top: 12px;
-    padding: 12px 14px;
-    background: rgba(248,113,113,0.08);
-    border: 1px solid rgba(248,113,113,0.2);
-    border-radius: var(--radius);
-    color: var(--red);
-    font-size: 13px;
-    font-family: var(--mono);
+    margin-top:12px; padding:12px 14px;
+    background:rgba(248,113,113,.08); border:1px solid rgba(248,113,113,.2);
+    border-radius:var(--radius); color:var(--red); font-size:13px; font-family:var(--mono); line-height:1.5;
   }
 
   /* ══ REPO SELECT ══ */
   .repo-select-screen {
-    min-height: 100vh;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 40px 24px;
-    animation: fadeUp 0.3s ease both;
+    min-height:100vh; display:flex; flex-direction:column;
+    animation:fadeUp .3s ease both;
   }
-
-  .repo-select-card {
-    width: 100%;
-    max-width: 580px;
+  .rs-topbar {
+    display:flex; align-items:center; gap:10px; padding:13px 16px;
+    background:var(--surface); border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:20;
   }
-
-  .rs-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 24px;
-  }
-
-  .rs-title {
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-  }
-
-  .rs-title span { color: var(--accent); }
-
   .btn-ghost {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    font-family: var(--sans);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-    letter-spacing: 0.02em;
+    display:flex; align-items:center; gap:5px; padding:9px 14px;
+    background:transparent; border:1px solid var(--border); border-radius:var(--radius);
+    font-family:var(--sans); font-size:13px; font-weight:600; color:var(--text-muted);
+    cursor:pointer; white-space:nowrap; min-height:42px;
   }
-
-  .btn-ghost:hover {
-    background: var(--surface2);
-    border-color: var(--border-bright);
-    color: var(--text);
-  }
-
-  .search-bar {
-    position: relative;
-    margin-bottom: 16px;
-  }
-
-  .search-bar input {
-    padding-left: 40px;
-    background: var(--surface);
-    border-color: var(--border);
-  }
-
-  .search-bar .input-icon { color: var(--text-muted); }
-
-  .repo-count {
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-bottom: 12px;
-    font-family: var(--mono);
-  }
-
-  .repo-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 65vh;
-    overflow-y: auto;
-    padding-right: 4px;
-  }
+  .btn-ghost:active { background:var(--surface2); }
+  .rs-title { font-size:15px; font-weight:700; letter-spacing:-.02em; flex:1; min-width:0; overflow:hidden; }
+  .rs-title span { color:var(--accent); }
+  .rs-body { padding:14px 16px; flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .repo-count { font-size:11px; color:var(--text-dim); margin-bottom:10px; font-family:var(--mono); }
+  .repo-grid { display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch; }
 
   .repo-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px 18px;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:14px 16px; cursor:pointer; display:flex;
+    align-items:flex-start; justify-content:space-between; gap:10px; min-height:64px;
   }
-
-  .repo-card:hover {
-    border-color: var(--accent);
-    background: var(--surface2);
-    transform: translateX(2px);
-    box-shadow: -3px 0 0 var(--accent);
-  }
-
-  .repo-card-left { flex: 1; min-width: 0; }
-
+  .repo-card:active { background:var(--surface2); border-color:var(--accent); }
+  .repo-card-left { flex:1; min-width:0; }
   .repo-card-name {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--accent);
-    margin-bottom: 4px;
-    font-family: var(--mono);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size:14px; font-weight:700; color:var(--accent); margin-bottom:4px;
+    font-family:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-
   .repo-card-desc {
-    font-size: 12px;
-    color: var(--text-muted);
-    line-height: 1.4;
-    font-family: var(--sans);
-    font-weight: 400;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size:12px; color:var(--text-muted); line-height:1.4;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-
-  .repo-card-meta {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
+  .repo-card-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
   .branch-tag {
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 2px 7px;
-    background: var(--green-dim);
-    color: var(--green);
-    border-radius: 20px;
-    border: 1px solid rgba(34,197,94,0.2);
+    font-family:var(--mono); font-size:10px; padding:2px 7px;
+    background:var(--green-dim); color:var(--green);
+    border-radius:20px; border:1px solid rgba(34,197,94,.2); white-space:nowrap;
   }
+  .lang-tag { font-family:var(--mono); font-size:10px; color:var(--text-dim); white-space:nowrap; }
 
-  .lang-tag {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text-dim);
-  }
-
-  /* ══ VIEWER LAYOUT ══ */
+  /* ══ VIEWER ══ */
   .viewer {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-    animation: fadeUp 0.3s ease both;
+    display:flex; flex-direction:column;
+    height:100vh; height:100dvh; overflow:hidden;
+    animation:fadeUp .3s ease both;
   }
 
   /* Top bar */
   .topbar {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 12px 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    z-index: 50;
+    display:flex; align-items:center; gap:10px; padding:10px 16px;
+    background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; z-index:40;
   }
-
-  .topbar-logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
   .topbar-logo-mark {
-    width: 28px; height: 28px;
-    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-    border-radius: 7px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width:26px; height:26px; background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+    border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
   }
-
-  .topbar-logo-mark svg { fill: white; width: 16px; height: 16px; }
-
+  .topbar-logo-mark svg { fill:white; width:14px; height:14px; }
   .topbar-repo-info {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: var(--mono);
-    font-size: 13px;
-    min-width: 0;
+    display:flex; align-items:center; gap:4px;
+    font-family:var(--mono); font-size:13px; min-width:0; flex:1; overflow:hidden;
   }
-
-  .topbar-user { color: var(--text-muted); }
-  .topbar-sep { color: var(--border-bright); }
-  .topbar-repo { color: var(--text); font-weight: 600; }
-
-  .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-
+  .topbar-user { color:var(--text-muted); flex-shrink:0; }
+  .topbar-sep { color:var(--border-bright); flex-shrink:0; }
+  .topbar-repo { color:var(--text); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .topbar-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  /* Mobile-only Files button — hidden by default on desktop */
+  .topbar-files-btn { display:none; }
   .topbar-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-family: var(--sans);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
+    display:flex; align-items:center; gap:4px; padding:6px 10px;
+    background:transparent; border:1px solid var(--border); border-radius:6px;
+    font-family:var(--sans); font-size:11px; font-weight:600; color:var(--text-muted);
+    cursor:pointer; white-space:nowrap; min-height:32px;
   }
+  .topbar-btn:hover { background:var(--surface2); border-color:var(--border-bright); color:var(--text); }
+  .topbar-btn:active { background:var(--surface2); }
 
-  .topbar-btn:hover {
-    background: var(--surface2);
-    border-color: var(--border-bright);
-    color: var(--text);
-  }
-
-  /* Breadcrumb bar */
+  /* Breadcrumb */
   .breadcrumb-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 20px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    overflow-x: auto;
+    display:flex; align-items:center; gap:3px; padding:8px 14px;
+    background:var(--bg); border-bottom:1px solid var(--border);
+    flex-shrink:0; overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
-
-  .breadcrumb-bar::-webkit-scrollbar { height: 0; }
-
+  .breadcrumb-bar::-webkit-scrollbar { height:0; }
   .bc-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--accent);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: color 0.15s;
-    text-decoration: none;
-    background: none;
-    border: none;
-    padding: 3px 6px;
-    border-radius: 4px;
+    display:flex; align-items:center; gap:4px;
+    font-family:var(--mono); font-size:12px; color:var(--accent);
+    cursor:pointer; white-space:nowrap; background:none; border:none;
+    padding:4px 6px; border-radius:4px; min-height:30px;
   }
+  .bc-item:active { background:var(--accent-glow); }
+  .bc-item.current { color:var(--text); cursor:default; font-weight:600; }
+  .bc-item.current:active { background:transparent; }
+  .bc-sep { color:var(--text-dim); font-size:11px; flex-shrink:0; }
 
-  .bc-item:hover { background: var(--accent-glow); }
+  /* Panel split */
+  .panel-split { display:flex; flex:1; overflow:hidden; }
 
-  .bc-item.current {
-    color: var(--text);
-    cursor: default;
-    font-weight: 600;
-  }
-
-  .bc-item.current:hover { background: transparent; }
-
-  .bc-sep {
-    color: var(--text-dim);
-    font-size: 12px;
-    flex-shrink: 0;
-  }
-
-  .bc-home-icon { font-size: 14px; }
-
-  /* Main panel split */
-  .panel-split {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  /* Sidebar */
+  /* Sidebar — desktop only */
   .sidebar {
-    width: 280px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow: hidden;
+    width:268px; background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; flex-shrink:0; overflow:hidden;
   }
-
-  .sidebar-head {
-    padding: 14px 16px 10px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
+  .sidebar-head { padding:12px 14px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
   .sidebar-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 10px;
+    font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--text-dim); margin-bottom:8px;
   }
+  .sidebar-search { position:relative; }
+  .sidebar-search input { font-size:13px; padding:8px 10px 8px 32px; border-radius:6px; }
+  .sidebar-search .input-icon { left:10px; top:50%; transform:translateY(-50%); font-size:12px; }
+  .file-list { flex:1; overflow-y:auto; padding:4px 0; -webkit-overflow-scrolling:touch; }
 
-  .sidebar-search {
-    position: relative;
-  }
-
-  .sidebar-search input {
-    font-size: 12px;
-    padding: 7px 10px 7px 32px;
-    background: var(--bg);
-    border-color: var(--border);
-    border-radius: 6px;
-  }
-
-  .sidebar-search .input-icon { left: 10px; font-size: 12px; }
-
-  .file-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 6px 0;
-  }
-
-  /* Back entry for parent directory */
+  /* File items */
   .back-entry {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 14px;
-    cursor: pointer;
-    color: var(--text-muted);
-    font-size: 13px;
-    font-family: var(--mono);
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-    transition: background 0.1s, color 0.1s;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 4px;
+    display:flex; align-items:center; gap:8px; padding:10px 14px;
+    color:var(--text-muted); font-size:13px; font-family:var(--mono);
+    border:none; background:none; width:100%; text-align:left;
+    border-bottom:1px solid var(--border); margin-bottom:4px; cursor:pointer; min-height:46px;
   }
-
-  .back-entry:hover { background: var(--surface2); color: var(--text); }
-
-  .back-icon { font-size: 12px; color: var(--text-dim); }
+  .back-entry:active { background:var(--surface2); }
+  .back-icon { font-size:12px; color:var(--text-dim); }
 
   .file-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 14px;
-    cursor: pointer;
-    font-size: 13px;
-    font-family: var(--mono);
-    color: var(--text);
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-    transition: background 0.1s;
-    position: relative;
+    display:flex; align-items:center; gap:8px; padding:9px 14px;
+    cursor:pointer; font-size:13px; font-family:var(--mono); color:var(--text);
+    border:none; background:none; width:100%; text-align:left; position:relative; min-height:46px;
   }
-
-  .file-item:hover { background: var(--surface2); }
-
-  .file-item.active {
-    background: var(--accent-glow);
-    color: #93c5fd;
-  }
-
+  .file-item:active { background:var(--surface2); }
+  .file-item.active { background:var(--accent-glow); color:#93c5fd; }
   .file-item.active::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 2px;
-    background: var(--accent);
+    content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--accent);
   }
-
-  .file-item-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .file-item-icon { font-size: 14px; flex-shrink: 0; }
-
-  .folder-icon { color: var(--folder); }
-
-  .file-size {
-    font-size: 10px;
-    color: var(--text-dim);
-    flex-shrink: 0;
-  }
+  .file-item-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .file-item-icon { font-size:14px; flex-shrink:0; }
+  .folder-icon { color:var(--folder); }
+  .file-size { font-size:10px; color:var(--text-dim); flex-shrink:0; }
 
   /* Content area */
-  .content-area {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
+  .content-area { flex:1; overflow:hidden; display:flex; flex-direction:column; }
   .content-header {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    background: var(--surface);
-    gap: 12px;
+    padding:12px 16px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0; background:var(--surface); gap:8px; flex-wrap:wrap;
   }
-
   .content-file-name {
-    font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    font-family:var(--mono); font-size:13px; font-weight:600; color:var(--text);
+    display:flex; align-items:center; gap:6px; min-width:0; flex:1;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-
   .content-file-size {
-    font-size: 11px;
-    color: var(--text-dim);
-    background: var(--surface2);
-    padding: 2px 8px;
-    border-radius: 4px;
+    font-size:10px; color:var(--text-dim); background:var(--surface2);
+    padding:2px 7px; border-radius:4px; flex-shrink:0;
   }
-
-  .content-actions { display: flex; gap: 8px; }
-
+  .content-actions { display:flex; gap:6px; flex-shrink:0; }
   .action-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-family: var(--sans);
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-    letter-spacing: 0.02em;
+    display:flex; align-items:center; gap:4px; padding:6px 11px;
+    background:var(--surface2); border:1px solid var(--border); border-radius:6px;
+    font-family:var(--sans); font-size:11px; font-weight:600; color:var(--text-muted);
+    cursor:pointer; min-height:32px; white-space:nowrap; text-decoration:none;
   }
+  .action-btn:active { border-color:var(--border-bright); color:var(--text); background:var(--border); }
 
-  .action-btn:hover {
-    border-color: var(--border-bright);
-    color: var(--text);
-    background: var(--border);
+  .content-body { flex:1; overflow-y:auto; padding:20px 16px; -webkit-overflow-scrolling:touch; }
+
+  .code-container { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:#0a0f14; }
+  .code-container pre { margin:0; padding:16px; overflow-x:auto; background:transparent!important; }
+  .code-container code { font-family:var(--mono); font-size:12px; line-height:1.7; background:transparent!important; }
+
+  .markdown-body { max-width:820px; font-weight:400; line-height:1.7; font-size:15px; }
+  .markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6 {
+    font-family:var(--sans); font-weight:800; letter-spacing:-.02em;
+    color:#e8f0fe; margin:24px 0 12px; line-height:1.2;
   }
-
-  .content-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
-  }
-
-  /* Code view */
-  .code-container {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    background: #0a0f14;
-  }
-
-  .code-container pre {
-    margin: 0;
-    padding: 20px;
-    overflow-x: auto;
-    background: transparent !important;
-  }
-
-  .code-container code {
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.7;
-    background: transparent !important;
-  }
-
-  /* Markdown */
-  .markdown-body {
-    max-width: 820px;
-    font-weight: 400;
-    line-height: 1.7;
-    font-size: 15px;
-  }
-
-  .markdown-body h1, .markdown-body h2, .markdown-body h3,
-  .markdown-body h4, .markdown-body h5, .markdown-body h6 {
-    font-family: var(--sans);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: #e8f0fe;
-    margin: 28px 0 14px;
-    line-height: 1.2;
-  }
-
-  .markdown-body h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-  .markdown-body h2 { font-size: 1.45em; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
-  .markdown-body h3 { font-size: 1.15em; }
-
-  .markdown-body p { margin-bottom: 16px; }
-
-  .markdown-body a { color: var(--accent); text-decoration: none; }
-  .markdown-body a:hover { text-decoration: underline; }
-
+  .markdown-body h1 { font-size:1.9em; border-bottom:1px solid var(--border); padding-bottom:10px; }
+  .markdown-body h2 { font-size:1.4em; border-bottom:1px solid var(--border); padding-bottom:8px; }
+  .markdown-body h3 { font-size:1.1em; }
+  .markdown-body p { margin-bottom:14px; }
+  .markdown-body a { color:var(--accent); text-decoration:none; }
+  .markdown-body a:hover { text-decoration:underline; }
   .markdown-body code {
-    font-family: var(--mono);
-    font-size: 85%;
-    padding: 2px 6px;
-    background: var(--surface2);
-    border-radius: 4px;
-    color: #93c5fd;
+    font-family:var(--mono); font-size:85%; padding:2px 6px;
+    background:var(--surface2); border-radius:4px; color:#93c5fd; word-break:break-word;
   }
-
-  .markdown-body pre {
-    background: #0a0f14;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px;
-    overflow-x: auto;
-    margin-bottom: 16px;
-  }
-
-  .markdown-body pre code {
-    background: none;
-    padding: 0;
-    font-size: 13px;
-    color: inherit;
-  }
-
-  .markdown-body ul, .markdown-body ol {
-    margin-bottom: 16px;
-    padding-left: 1.6em;
-  }
-
-  .markdown-body li { margin-bottom: 4px; }
-
+  .markdown-body pre { background:#0a0f14; border:1px solid var(--border); border-radius:var(--radius); padding:14px; overflow-x:auto; margin-bottom:14px; }
+  .markdown-body pre code { background:none; padding:0; font-size:12px; color:inherit; }
+  .markdown-body ul,.markdown-body ol { margin-bottom:14px; padding-left:1.5em; }
+  .markdown-body li { margin-bottom:4px; }
   .markdown-body blockquote {
-    padding: 10px 16px;
-    border-left: 3px solid var(--accent);
-    color: var(--text-muted);
-    margin: 0 0 16px;
-    background: var(--accent-glow);
-    border-radius: 0 6px 6px 0;
+    padding:10px 14px; border-left:3px solid var(--accent); color:var(--text-muted);
+    margin:0 0 14px; background:var(--accent-glow); border-radius:0 6px 6px 0;
   }
+  .markdown-body table { width:100%; border-collapse:collapse; margin-bottom:14px; font-size:13px; display:block; overflow-x:auto; }
+  .markdown-body th,.markdown-body td { padding:8px 12px; border:1px solid var(--border); text-align:left; }
+  .markdown-body th { background:var(--surface2); font-weight:600; font-size:11px; letter-spacing:.05em; text-transform:uppercase; }
+  .markdown-body img { max-width:100%; border-radius:var(--radius); border:1px solid var(--border); }
 
-  .markdown-body table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 16px;
-    font-size: 14px;
-  }
-
-  .markdown-body th, .markdown-body td {
-    padding: 8px 14px;
-    border: 1px solid var(--border);
-    text-align: left;
-  }
-
-  .markdown-body th {
-    background: var(--surface2);
-    font-weight: 600;
-    font-family: var(--sans);
-    font-size: 12px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-
-  .markdown-body img { max-width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
-
-  /* Empty state */
   .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-dim);
-    gap: 12px;
-    padding: 40px;
-    text-align: center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    height:100%; color:var(--text-dim); gap:10px; padding:40px 20px; text-align:center;
   }
+  .empty-icon { font-size:46px; opacity:.4; }
+  .empty-title { font-size:17px; font-weight:700; color:var(--text-muted); letter-spacing:-.02em; }
+  .empty-desc { font-size:13px; max-width:250px; line-height:1.5; }
 
-  .empty-icon { font-size: 52px; opacity: 0.4; }
+  .loading-overlay { display:flex; align-items:center; justify-content:center; height:100%; gap:8px; color:var(--text-muted); font-size:14px; }
 
-  .empty-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-muted);
-    letter-spacing: -0.02em;
-  }
+  .img-view { display:flex; justify-content:center; padding:16px; }
+  .img-view img { max-width:100%; border-radius:var(--radius); border:1px solid var(--border); }
 
-  .empty-desc { font-size: 13px; max-width: 280px; line-height: 1.5; }
-
-  /* Loading */
-  .spinner {
-    display: inline-block;
-    width: 14px; height: 14px;
-    border: 2px solid rgba(255,255,255,0.2);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-    vertical-align: middle;
-    margin-right: 6px;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-overlay {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    gap: 10px;
-    color: var(--text-muted);
-    font-size: 14px;
-  }
-
-  /* Image */
-  .img-view {
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-  }
-
-  .img-view img {
-    max-width: 100%;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-  }
-
-  /* Footer */
   .footer {
-    padding: 16px 20px;
-    text-align: center;
-    font-size: 11px;
-    color: var(--text-dim);
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    letter-spacing: 0.04em;
-    font-family: var(--mono);
-    flex-shrink: 0;
+    padding:11px 16px; text-align:center; font-size:10px; color:var(--text-dim);
+    border-top:1px solid var(--border); background:var(--surface);
+    letter-spacing:.04em; font-family:var(--mono); flex-shrink:0;
   }
 
-  /* No-sidebar mobile */
-  @media (max-width: 720px) {
-    .sidebar { display: none; }
+  iframe, embed { width:100%; height:100%; border:none; border-radius:var(--radius); }
+
+  /* ══════════════════════════════════════
+     MOBILE — ≤ 720px
+  ══════════════════════════════════════ */
+  @media(max-width:720px) {
+    /* Kill the desktop sidebar */
+    .sidebar { display:none!important; }
+    /* Kill desktop topbar actions — replaced by bottom nav */
+    .topbar-actions { display:none!important; }
+    /* On mobile topbar: just logo + repo info + a Files pill button */
+    .topbar { padding:0 12px; height:52px; }
+    .topbar-repo-info { font-size:12px; }
+    /* Mobile-only Files button inside topbar */
+    .topbar-files-btn {
+      display:flex; align-items:center; gap:5px;
+      padding:7px 13px; background:var(--accent-glow);
+      border:1px solid var(--accent); border-radius:20px;
+      font-family:var(--sans); font-size:12px; font-weight:700;
+      color:var(--accent); cursor:pointer; flex-shrink:0;
+      white-space:nowrap;
+    }
+    .topbar-files-btn:active { background:rgba(59,130,246,.25); }
+
+    /* Breadcrumb smaller */
+    .breadcrumb-bar { padding:6px 12px; }
+    .bc-item { font-size:11px; padding:3px 5px; }
+
+    /* Viewer must fit viewport minus bottom nav */
+    .viewer {
+      height:100vh; height:100dvh;
+      padding-bottom:calc(var(--bnav) + var(--safe-b));
+    }
+    /* Content fills the rest */
+    .content-body { padding:14px 12px; }
+    .content-header { padding:9px 12px; flex-wrap:nowrap; }
+    .content-file-name { font-size:12px; }
+    .action-btn { padding:6px 9px; font-size:10px; }
+
+    /* Footer hidden on mobile to save space */
+    .viewer .footer { display:none; }
   }
 
-  iframe, embed {
-    width: 100%;
-    height: 100%;
-    border: none;
-    border-radius: var(--radius);
+  /* ══ BOTTOM NAV ══ */
+  .bottom-nav {
+    display:none; /* shown only in mobile media query below */
+    position:fixed; bottom:0; left:0; right:0;
+    height:calc(var(--bnav) + var(--safe-b));
+    padding-bottom:var(--safe-b);
+    background:var(--surface); border-top:1px solid var(--border);
+    z-index:400;
   }
+  .bottom-nav-inner { display:flex; height:var(--bnav); }
+  .bnav-btn {
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; border:none; background:none; color:var(--text-muted);
+    font-family:var(--sans); cursor:pointer; padding:0 2px;
+    border-right:1px solid var(--border); min-width:0;
+  }
+  .bnav-btn:last-child { border-right:none; }
+  .bnav-btn:active { background:var(--surface2); }
+  .bnav-btn.bnav-active { color:var(--accent); }
+  .bnav-icon { font-size:20px; line-height:1; }
+  .bnav-label { font-size:9px; font-weight:600; letter-spacing:.02em; color:inherit; }
+
+  @media(max-width:720px) { .bottom-nav { display:block; } }
+
+  /* ══ DRAWER OVERLAY ══ */
+  .drawer-overlay {
+    display:none;
+    position:fixed; inset:0; background:rgba(0,0,0,.7);
+    z-index:500; opacity:0; pointer-events:none;
+    transition:opacity .25s;
+  }
+  .drawer-overlay.open { opacity:1; pointer-events:all; }
+  @media(max-width:720px) { .drawer-overlay { display:block; } }
+
+  /* ══ BOTTOM DRAWER ══ */
+  .drawer {
+    display:none;
+    position:fixed; bottom:0; left:0; right:0;
+    /* leave room for bottom nav at the bottom */
+    height:calc(80vh - var(--bnav));
+    background:var(--surface);
+    border-top:2px solid var(--accent);
+    border-radius:16px 16px 0 0;
+    z-index:600;
+    transform:translateY(100%);
+    transition:transform .3s cubic-bezier(.32,0,.16,1);
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .drawer.open { transform:translateY(0); }
+  @media(max-width:720px) { .drawer { display:flex; } }
+
+  .drawer-handle {
+    display:flex; justify-content:center; align-items:center;
+    padding:10px 0 4px; cursor:pointer; flex-shrink:0;
+  }
+  .drawer-handle-pill { width:40px; height:4px; background:var(--border-bright); border-radius:2px; }
+
+  .drawer-title-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:2px 14px 10px; flex-shrink:0;
+  }
+  .drawer-path {
+    font-family:var(--mono); font-size:11px; color:var(--text-muted);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60%;
+  }
+  .drawer-close-btn {
+    font-size:11px; font-weight:700; color:var(--text-dim); background:none;
+    border:1px solid var(--border); border-radius:5px; padding:4px 10px; cursor:pointer;
+  }
+  .drawer-close-btn:active { background:var(--surface2); }
+
+  .drawer-search-row {
+    padding:0 12px 10px; flex-shrink:0;
+    border-bottom:1px solid var(--border);
+  }
+  .drawer-search-row .input-wrap input {
+    font-size:16px; padding:9px 12px 9px 36px; border-radius:6px;
+  }
+  .drawer-search-row .input-icon { left:12px; top:50%; transform:translateY(-50%); }
+
+  .drawer-file-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:4px 0; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 
 <script>
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
 var S = {
-  step: 'username',      // username | repo-select | viewing
-  username: '',
-  repos: [],
-  repoSearch: '',
-  selectedRepo: null,
-  selectedBranch: 'main',
-  files: [],
-  currentPath: '',       // current folder path e.g. "src/components"
-  selectedFile: null,
-  content: '',
-  loading: false,
-  error: '',
-  fileSearch: '',
+  step: 'username',
+  username: '', repos: [], repoSearch: '',
+  selectedRepo: null, selectedBranch: 'main',
+  files: [], currentPath: '',
+  selectedFile: null, content: '',
+  loading: false, error: '', fileSearch: '',
+  drawerOpen: false,
 };
 
-/* ─── History stack for back navigation ─── */
-var pathHistory = [];   // array of previous paths
+var pathHistory = [];
 
-/* ─── API helpers ─── */
-function api(url) {
-  return fetch(url).then(r => {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
+/* ══ Utils ══ */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmtSize(b){if(!b)return '';if(b<1024)return b+'B';if(b<1048576)return (b/1024).toFixed(1)+'K';return (b/1048576).toFixed(1)+'M';}
+function mob(){ return window.innerWidth<=720; }
+
+/* ══ API ══ */
+function api(url){
+  return fetch(url).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+}
+
+function fetchRepos(){
+  S.loading=true; S.error=''; render();
+  api('https://api.github.com/users/'+S.username+'/repos?per_page=100&sort=updated')
+    .then(d=>{S.repos=d; S.step='repo-select'; S.loading=false; render();})
+    .catch(()=>{S.error='User not found or API rate limit reached.'; S.loading=false; render();});
+}
+
+function fetchFiles(path, push){
+  if(push && path!==S.currentPath) pathHistory.push(S.currentPath);
+  S.loading=true; S.error=''; S.fileSearch='';
+  // on mobile, open drawer to show loading
+  if(mob()) S.drawerOpen=true;
+  render();
+  api('https://api.github.com/repos/'+S.username+'/'+S.selectedRepo.name+'/contents/'+path+'?ref='+S.selectedBranch)
+    .then(d=>{
+      S.files=Array.isArray(d)?d:[d];
+      S.currentPath=path; S.loading=false; render();
+    })
+    .catch(()=>{S.error='Failed to load directory.'; S.loading=false; render();});
+}
+
+function fetchContent(file){
+  S.loading=true; S.error='';
+  if(mob()){ S.drawerOpen=false; }
+  render();
+  fetch(file.download_url)
+    .then(r=>{if(!r.ok)throw new Error();return r.text();})
+    .then(t=>{S.content=t; S.selectedFile=file; S.loading=false; render();})
+    .catch(()=>{S.error='Failed to load file content.'; S.loading=false; render();});
+}
+
+/* ══ Navigation ══ */
+function handleFileClick(file){
+  if(file.type==='dir'){ S.selectedFile=null; fetchFiles(file.path,true); }
+  else { S.selectedFile=file; fetchContent(file); }
+}
+
+function goBack(){
+  if(!pathHistory.length) return;
+  var prev=pathHistory.pop();
+  S.selectedFile=null; fetchFiles(prev,false);
+}
+
+function goHome(){
+  pathHistory=[]; S.selectedFile=null; fetchFiles('',false);
+}
+
+function navigateTo(idx){
+  var parts=S.currentPath?S.currentPath.split('/'):[]; 
+  var target=idx===-1?'':parts.slice(0,idx+1).join('/');
+  if(target===S.currentPath) return;
+  pathHistory.push(S.currentPath); S.selectedFile=null; fetchFiles(target,false);
+}
+
+function selectRepo(repo){
+  S.selectedRepo=repo; S.selectedBranch=repo.default_branch||'main';
+  S.step='viewing'; S.currentPath=''; S.selectedFile=null; S.content='';
+  pathHistory=[]; S.drawerOpen=false;
+  fetchFiles('',false);
+}
+
+function changeRepo(){
+  S.step='repo-select'; S.selectedFile=null; S.content='';
+  S.currentPath=''; pathHistory=[]; S.drawerOpen=false; render();
+}
+
+function downloadFile(){
+  if(!S.selectedFile) return;
+  fetch(S.selectedFile.download_url).then(r=>r.blob()).then(blob=>{
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=S.selectedFile.name;
+    document.body.appendChild(a); a.click(); a.remove();
   });
 }
 
-function fetchRepos() {
-  S.loading = true; S.error = ''; render();
-  api(`https://api.github.com/users/${S.username}/repos?per_page=100&sort=updated`)
-    .then(data => { S.repos = data; S.step = 'repo-select'; S.loading = false; render(); })
-    .catch(e => { S.error = 'User not found or API rate limit reached.'; S.loading = false; render(); });
+function copyContent(){
+  if(S.content) navigator.clipboard.writeText(S.content).catch(()=>{});
 }
 
-function fetchFiles(path, pushHistory) {
-  if (pushHistory === true && path !== S.currentPath) {
-    pathHistory.push(S.currentPath);
-  }
-  S.loading = true; S.error = ''; S.fileSearch = ''; render();
-  const url = `https://api.github.com/repos/${S.username}/${S.selectedRepo.name}/contents/${path}?ref=${S.selectedBranch}`;
-  api(url)
-    .then(data => {
-      S.files = Array.isArray(data) ? data : [data];
-      S.currentPath = path;
-      S.loading = false;
-      render();
-    })
-    .catch(e => { S.error = 'Failed to load directory.'; S.loading = false; render(); });
+/* ══ Drawer ══ */
+function openDrawer(){ S.drawerOpen=true; render(); }
+function closeDrawer(){ S.drawerOpen=false; render(); }
+
+/* ══ Filtered lists ══ */
+function filteredFiles(){
+  var t=S.fileSearch.toLowerCase();
+  return S.files.filter(f=>f.name.toLowerCase().includes(t));
+}
+function filteredRepos(){
+  var t=S.repoSearch.toLowerCase();
+  return S.repos.filter(r=>r.name.toLowerCase().includes(t)||(r.description&&r.description.toLowerCase().includes(t)));
 }
 
-function fetchContent(file) {
-  S.loading = true; S.error = ''; render();
-  fetch(file.download_url)
-    .then(r => { if (!r.ok) throw new Error(); return r.text(); })
-    .then(text => { S.content = text; S.selectedFile = file; S.loading = false; render(); })
-    .catch(() => { S.error = 'Failed to load file content.'; S.loading = false; render(); });
-}
-
-/* ─── Actions ─── */
-function handleFileClick(file) {
-  if (file.type === 'dir') {
-    S.selectedFile = null;
-    fetchFiles(file.path, true);
-  } else {
-    S.selectedFile = file;
-    fetchContent(file);
-    render(); // show active state immediately
-  }
-}
-
-function goBack() {
-  if (pathHistory.length === 0) return;
-  var prev = pathHistory.pop();
-  S.selectedFile = null;
-  fetchFiles(prev, false);
-}
-
-function goHome() {
-  pathHistory = [];
-  S.selectedFile = null;
-  fetchFiles('', false);
-}
-
-function navigateTo(index) {
-  // index -1 = root, 0..n = parts of currentPath
-  var parts = S.currentPath ? S.currentPath.split('/') : [];
-  var target = index === -1 ? '' : parts.slice(0, index + 1).join('/');
-  if (target === S.currentPath) return;
-  pathHistory.push(S.currentPath);
-  S.selectedFile = null;
-  fetchFiles(target, false);
-}
-
-function selectRepo(repo) {
-  S.selectedRepo = repo;
-  S.selectedBranch = repo.default_branch || 'main';
-  S.step = 'viewing';
-  S.currentPath = '';
-  S.selectedFile = null;
-  S.content = '';
-  pathHistory = [];
-  fetchFiles('', false);
-}
-
-function changeRepo() {
-  S.step = 'repo-select';
-  S.selectedFile = null;
-  S.content = '';
-  S.currentPath = '';
-  pathHistory = [];
-  render();
-}
-
-function downloadFile() {
-  if (!S.selectedFile) return;
-  fetch(S.selectedFile.download_url)
-    .then(r => r.blob())
-    .then(blob => {
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = S.selectedFile.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    });
-}
-
-function copyContent() {
-  if (S.content) navigator.clipboard.writeText(S.content).catch(() => {});
-}
-
-/* ─── Filtered lists ─── */
-function filteredFiles() {
-  var term = S.fileSearch.toLowerCase();
-  return S.files.filter(f => f.name.toLowerCase().includes(term));
-}
-
-function filteredRepos() {
-  var term = S.repoSearch.toLowerCase();
-  return S.repos.filter(r => r.name.toLowerCase().includes(term) ||
-    (r.description && r.description.toLowerCase().includes(term)));
-}
-
-/* ─── File icon ─── */
-function fileIcon(f) {
-  if (f.type === 'dir') return '<span class="file-item-icon folder-icon">📁</span>';
-  var n = f.name.toLowerCase();
-  if (/\.(js|ts|jsx|tsx)$/.test(n)) return '<span class="file-item-icon">🟨</span>';
-  if (/\.(py)$/.test(n))   return '<span class="file-item-icon">🐍</span>';
-  if (/\.(md|mdx)$/.test(n)) return '<span class="file-item-icon">📝</span>';
-  if (/\.(json)$/.test(n)) return '<span class="file-item-icon">🔵</span>';
-  if (/\.(html)$/.test(n)) return '<span class="file-item-icon">🌐</span>';
-  if (/\.(css|scss)$/.test(n)) return '<span class="file-item-icon">🎨</span>';
-  if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)) return '<span class="file-item-icon">🖼️</span>';
-  if (/\.(sh|bash)$/.test(n)) return '<span class="file-item-icon">⚡</span>';
-  if (/\.(yml|yaml)$/.test(n)) return '<span class="file-item-icon">⚙️</span>';
+/* ══ Icons ══ */
+function fileIcon(f){
+  if(f.type==='dir') return '<span class="file-item-icon folder-icon">📁</span>';
+  var n=f.name.toLowerCase();
+  if(/\.(js|jsx)$/.test(n)) return '<span class="file-item-icon">🟨</span>';
+  if(/\.(ts|tsx)$/.test(n)) return '<span class="file-item-icon">🔷</span>';
+  if(/\.py$/.test(n))       return '<span class="file-item-icon">🐍</span>';
+  if(/\.(md|mdx)$/.test(n)) return '<span class="file-item-icon">📝</span>';
+  if(/\.json$/.test(n))     return '<span class="file-item-icon">🔵</span>';
+  if(/\.html$/.test(n))     return '<span class="file-item-icon">🌐</span>';
+  if(/\.(css|scss)$/.test(n))return '<span class="file-item-icon">🎨</span>';
+  if(/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)) return '<span class="file-item-icon">🖼️</span>';
+  if(/\.(sh|bash)$/.test(n)) return '<span class="file-item-icon">⚡</span>';
+  if(/\.(yml|yaml)$/.test(n))return '<span class="file-item-icon">⚙️</span>';
+  if(/\.java$/.test(n))      return '<span class="file-item-icon">☕</span>';
+  if(/\.(c|cpp|h)$/.test(n)) return '<span class="file-item-icon">🔧</span>';
   return '<span class="file-item-icon">📄</span>';
 }
 
-function fmtSize(bytes) {
-  if (!bytes) return '';
-  if (bytes < 1024) return bytes + 'B';
-  if (bytes < 1048576) return (bytes/1024).toFixed(1) + 'K';
-  return (bytes/1048576).toFixed(1) + 'M';
+/* ══ File list HTML (shared sidebar + drawer) ══ */
+function fileListHTML(){
+  var files=filteredFiles();
+  var dirs=files.filter(f=>f.type==='dir').sort((a,b)=>a.name.localeCompare(b.name));
+  var docs=files.filter(f=>f.type==='file').sort((a,b)=>a.name.localeCompare(b.name));
+  var h='';
+  if(S.currentPath){
+    var prev=pathHistory.length&&pathHistory[pathHistory.length-1]!==''
+      ?(pathHistory[pathHistory.length-1].split('/').pop()||S.selectedRepo.name)
+      :S.selectedRepo.name;
+    h+=`<button class="back-entry" onclick="goBack()"><span class="back-icon">←</span><span style="font-size:12px">${esc(prev)}</span></button>`;
+  }
+  dirs.forEach(function(d){
+    h+=`<button class="file-item" onclick='handleFileClick(${JSON.stringify(d)})'>${fileIcon(d)}<span class="file-item-name">${esc(d.name)}</span><span style="color:var(--text-dim);font-size:11px">›</span></button>`;
+  });
+  docs.forEach(function(f){
+    var a=S.selectedFile&&S.selectedFile.path===f.path;
+    h+=`<button class="file-item ${a?'active':''}" onclick='handleFileClick(${JSON.stringify(f)})'>${fileIcon(f)}<span class="file-item-name">${esc(f.name)}</span>${f.size?`<span class="file-size">${fmtSize(f.size)}</span>`:''}</button>`;
+  });
+  if(!h&&!S.loading) h=`<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px">No files</div>`;
+  return h;
 }
 
-/* ─── Render file content ─── */
-function renderFileContent() {
-  var el = document.getElementById('file-view');
-  if (!el || !S.selectedFile) return;
-  var n = S.selectedFile.name.toLowerCase();
+/* ══ Content panel ══ */
+function contentPanelHTML(){
+  if(S.loading) return `<div class="loading-overlay"><span class="spinner"></span> Loading…</div>`;
+  if(S.selectedFile) return `
+    <div class="content-header">
+      <div class="content-file-name">${fileIcon(S.selectedFile)} ${esc(S.selectedFile.name)}${S.selectedFile.size?`<span class="content-file-size">${fmtSize(S.selectedFile.size)}</span>`:''}</div>
+      <div class="content-actions">
+        <button class="action-btn" onclick="copyContent()">⎘ Copy</button>
+        <button class="action-btn" onclick="downloadFile()">↓ DL</button>
+        <a href="${S.selectedFile.html_url}" target="_blank" class="action-btn" style="text-decoration:none">↗ GH</a>
+      </div>
+    </div>
+    <div class="content-body"><div id="file-view"></div></div>`;
+  return `<div class="empty-state">
+    <div class="empty-icon">📂</div>
+    <div class="empty-title">${esc(S.currentPath?S.currentPath.split('/').pop():S.selectedRepo?S.selectedRepo.name:'')}</div>
+    <div class="empty-desc">Select a file from the ${mob()?'Files tab':'sidebar'} to view its contents.</div>
+  </div>`;
+}
 
-  if (/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)) {
-    el.innerHTML = `<div class="img-view"><img src="${S.selectedFile.download_url}" alt="${S.selectedFile.name}" /></div>`;
+/* ══ Breadcrumb ══ */
+function breadcrumbHTML(){
+  if(!S.currentPath){
+    return `<button class="bc-item current">🏠 ${esc(S.selectedRepo.name)}</button>`;
+  }
+  var h=`<button class="bc-item" onclick="navigateTo(-1)">🏠 ${esc(S.selectedRepo.name)}</button>`;
+  var parts=S.currentPath.split('/');
+  parts.forEach(function(part,i){
+    h+=`<span class="bc-sep">›</span>`;
+    if(i===parts.length-1&&!S.selectedFile) h+=`<span class="bc-item current">${esc(part)}</span>`;
+    else h+=`<button class="bc-item" onclick="navigateTo(${i})">${esc(part)}</button>`;
+  });
+  if(S.selectedFile) h+=`<span class="bc-sep">›</span><span class="bc-item current">📄 ${esc(S.selectedFile.name)}</span>`;
+  return h;
+}
+
+/* ══ Render file ══ */
+function renderFileContent(){
+  var el=document.getElementById('file-view');
+  if(!el||!S.selectedFile) return;
+  var n=S.selectedFile.name.toLowerCase();
+  if(/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)){
+    el.innerHTML=`<div class="img-view"><img src="${S.selectedFile.download_url}" alt="${esc(S.selectedFile.name)}" /></div>`;
     return;
   }
-  if (n.endsWith('.pdf')) {
-    el.innerHTML = `<embed src="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(S.selectedFile.download_url)}" type="application/pdf" style="height:100%;min-height:600px;"></embed>`;
+  if(n.endsWith('.pdf')){
+    el.innerHTML=`<embed src="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(S.selectedFile.download_url)}" type="application/pdf" style="min-height:500px;"></embed>`;
     return;
   }
-  if (/\.(md|markdown|mdx)$/i.test(n)) {
-    el.innerHTML = `<div class="markdown-body">${marked.parse(S.content)}</div>`;
-    hljs.highlightAll();
-    return;
+  if(/\.(md|markdown|mdx)$/i.test(n)){
+    el.innerHTML=`<div class="markdown-body">${marked.parse(S.content)}</div>`;
+    hljs.highlightAll(); return;
   }
-  // code
-  var ext = n.split('.').pop() || 'text';
-  var escaped = S.content.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  el.innerHTML = `<div class="code-container"><pre><code class="language-${ext}">${escaped}</code></pre></div>`;
+  var ext=n.split('.').pop()||'text';
+  var escaped=S.content.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  el.innerHTML=`<div class="code-container"><pre><code class="language-${ext}">${escaped}</code></pre></div>`;
   hljs.highlightAll();
 }
 
-/* ─── Breadcrumb HTML ─── */
-function breadcrumbHTML() {
-  var html = `<button class="bc-item" onclick="goHome()"><span class="bc-home-icon">🏠</span> ${esc(S.selectedRepo.name)}</button>`;
-  if (!S.currentPath) {
-    // already at root, make current
-    html = `<button class="bc-item current"><span class="bc-home-icon">🏠</span> ${esc(S.selectedRepo.name)}</button>`;
-  } else {
-    var parts = S.currentPath.split('/');
-    parts.forEach(function(part, i) {
-      html += `<span class="bc-sep">›</span>`;
-      if (i === parts.length - 1 && !S.selectedFile) {
-        html += `<span class="bc-item current">${esc(part)}</span>`;
-      } else {
-        html += `<button class="bc-item" onclick="navigateTo(${i})">${esc(part)}</button>`;
-      }
-    });
-    if (S.selectedFile) {
-      html += `<span class="bc-sep">›</span><span class="bc-item current">📄 ${esc(S.selectedFile.name)}</span>`;
-    }
-  }
-  return html;
-}
+/* ══════════════════════════════════════════
+   MAIN RENDER
+══════════════════════════════════════════ */
+function render(){
+  var el=document.getElementById('app');
 
-function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
-/* ─── Main render ─── */
-function render() {
-  var el = document.getElementById('app');
-
-  /* STEP 1: Username */
-  if (S.step === 'username') {
-    el.innerHTML = `
+  /* — Username — */
+  if(S.step==='username'){
+    el.innerHTML=`
     <div class="landing">
       <div class="landing-card">
         <div class="landing-logo">
-          <div class="logo-mark">
-            <svg height="20" viewBox="0 0 16 16" width="20">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-            </svg>
-          </div>
+          <div class="logo-mark"><svg height="20" viewBox="0 0 16 16" width="20"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></div>
           <span class="logo-text">Repo<span>Browser</span></span>
         </div>
         <h1 class="landing-headline">Browse any GitHub repo</h1>
@@ -1139,51 +738,53 @@ function render() {
           <div class="input-wrap">
             <span class="input-icon">@</span>
             <input type="text" id="username" value="${esc(S.username)}" placeholder="e.g. torvalds"
-              onkeydown="if(event.key==='Enter')handleFetchRepos()">
+              onkeydown="if(event.key==='Enter')handleFetchRepos()"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
           </div>
         </div>
-        <button class="btn-primary" onclick="handleFetchRepos()" ${S.loading ? 'disabled' : ''}>
-          ${S.loading ? '<span class="spinner"></span> Fetching...' : '→ Fetch Repositories'}
+        <button class="btn-primary" onclick="handleFetchRepos()" ${S.loading?'disabled':''}>
+          ${S.loading?'<span class="spinner"></span> Fetching...':'→ Fetch Repositories'}
         </button>
-        ${S.error ? `<div class="error-box">⚠ ${esc(S.error)}</div>` : ''}
+        ${S.error?`<div class="error-box">⚠ ${esc(S.error)}</div>`:''}
       </div>
     </div>
     <div class="footer">Made by Hardik · Enhanced fork</div>`;
-    setTimeout(() => { var u = document.getElementById('username'); if(u) u.focus(); }, 50);
+    setTimeout(()=>{var u=document.getElementById('username');if(u&&!mob())u.focus();},50);
     return;
   }
 
-  /* STEP 2: Repo select */
-  if (S.step === 'repo-select') {
-    var reps = filteredRepos();
-    var reposHTML = reps.map(function(r) {
+  /* — Repo select — */
+  if(S.step==='repo-select'){
+    var reps=filteredRepos();
+    var reposHTML=reps.map(function(r){
       return `<div class="repo-card" onclick='selectRepoById("${esc(r.name)}")'>
         <div class="repo-card-left">
           <div class="repo-card-name">${esc(r.name)}</div>
-          ${r.description ? `<div class="repo-card-desc">${esc(r.description)}</div>` : '<div class="repo-card-desc" style="color:var(--text-dim)">No description</div>'}
+          ${r.description?`<div class="repo-card-desc">${esc(r.description)}</div>`:'<div class="repo-card-desc" style="color:var(--text-dim)">No description</div>'}
         </div>
         <div class="repo-card-meta">
-          <span class="branch-tag">${esc(r.default_branch || 'main')}</span>
-          ${r.language ? `<span class="lang-tag">${esc(r.language)}</span>` : ''}
+          <span class="branch-tag">${esc(r.default_branch||'main')}</span>
+          ${r.language?`<span class="lang-tag">${esc(r.language)}</span>`:''}
         </div>
       </div>`;
     }).join('');
-
-    el.innerHTML = `
+    el.innerHTML=`
     <div class="repo-select-screen">
-      <div class="repo-select-card">
-        <div class="rs-header">
-          <div class="rs-title">Repos of <span>${esc(S.username)}</span></div>
-          <button class="btn-ghost" onclick="S.step='username';render()">← Back</button>
-        </div>
-        <div class="search-bar">
-          <span class="input-icon" style="top:50%;transform:translateY(-50%)">🔍</span>
-          <input type="text" id="repoSearch" value="${esc(S.repoSearch)}" placeholder="Filter repos…"
-            oninput="S.repoSearch=this.value;render()">
+      <div class="rs-topbar">
+        <button class="btn-ghost" onclick="S.step='username';render()">← Back</button>
+        <div class="rs-title">Repos of <span>${esc(S.username)}</span></div>
+      </div>
+      <div class="rs-body">
+        <div class="input-group" style="margin-bottom:10px">
+          <div class="input-wrap">
+            <span class="input-icon">🔍</span>
+            <input type="text" id="repoSearch" value="${esc(S.repoSearch)}" placeholder="Filter repos…"
+              oninput="S.repoSearch=this.value;render()" autocomplete="off">
+          </div>
         </div>
         <div class="repo-count">${reps.length} of ${S.repos.length} repos</div>
         <div class="repo-grid">
-          ${reposHTML || '<div style="padding:24px;text-align:center;color:var(--text-dim)">No repos match</div>'}
+          ${reposHTML||'<div style="padding:24px;text-align:center;color:var(--text-dim)">No repos match</div>'}
         </div>
       </div>
     </div>
@@ -1191,132 +792,125 @@ function render() {
     return;
   }
 
-  /* STEP 3: Viewer */
-  var canGoBack = pathHistory.length > 0;
-  var files = filteredFiles();
-  var dirs = files.filter(f => f.type === 'dir').sort((a,b) => a.name.localeCompare(b.name));
-  var docs = files.filter(f => f.type === 'file').sort((a,b) => a.name.localeCompare(b.name));
+  /* — Viewer — */
+  var canBack=pathHistory.length>0;
+  var isFilesActive=!S.selectedFile||S.loading;
 
-  var sidebarItems = '';
-
-  // Back button when inside a subfolder
-  if (S.currentPath) {
-    var parentLabel = pathHistory.length > 0 && pathHistory[pathHistory.length-1] !== ''
-      ? '../' + (pathHistory[pathHistory.length-1].split('/').pop() || S.selectedRepo.name)
-      : '/ ' + S.selectedRepo.name;
-    sidebarItems += `<button class="back-entry" onclick="goBack()">
-      <span class="back-icon">←</span> ${esc(parentLabel)}
-    </button>`;
-  }
-
-  dirs.forEach(function(d) {
-    sidebarItems += `<button class="file-item" onclick='handleFileClick(${JSON.stringify(d)})'>
-      ${fileIcon(d)}<span class="file-item-name">${esc(d.name)}</span>
-      <span class="file-item-icon" style="color:var(--text-dim);font-size:11px">›</span>
-    </button>`;
-  });
-
-  docs.forEach(function(f) {
-    var active = S.selectedFile && S.selectedFile.path === f.path;
-    sidebarItems += `<button class="file-item ${active ? 'active' : ''}" onclick='handleFileClick(${JSON.stringify(f)})'>
-      ${fileIcon(f)}<span class="file-item-name">${esc(f.name)}</span>
-      ${f.size ? `<span class="file-size">${fmtSize(f.size)}</span>` : ''}
-    </button>`;
-  });
-
-  var contentHTML = '';
-  if (S.loading) {
-    contentHTML = `<div class="loading-overlay"><span class="spinner"></span> Loading…</div>`;
-  } else if (S.selectedFile) {
-    contentHTML = `
-    <div class="content-header">
-      <div class="content-file-name">
-        ${fileIcon(S.selectedFile)} ${esc(S.selectedFile.name)}
-        ${S.selectedFile.size ? `<span class="content-file-size">${fmtSize(S.selectedFile.size)}</span>` : ''}
-      </div>
-      <div class="content-actions">
-        <button class="action-btn" onclick="copyContent()">⎘ Copy</button>
-        <button class="action-btn" onclick="downloadFile()">↓ Download</button>
-        <a href="${S.selectedFile.html_url}" target="_blank" class="action-btn" style="text-decoration:none">↗ GitHub</a>
-      </div>
-    </div>
-    <div class="content-body"><div id="file-view"></div></div>`;
-  } else {
-    contentHTML = `
-    <div class="empty-state">
-      <div class="empty-icon">📂</div>
-      <div class="empty-title">${esc(S.currentPath ? S.currentPath.split('/').pop() : S.selectedRepo.name)}</div>
-      <div class="empty-desc">Select a file from the sidebar to view its contents.</div>
-    </div>`;
-  }
-
-  el.innerHTML = `
+  el.innerHTML=`
   <div class="viewer">
     <div class="topbar">
-      <div class="topbar-logo">
-        <div class="topbar-logo-mark">
-          <svg height="16" viewBox="0 0 16 16" width="16">
-            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-          </svg>
-        </div>
-      </div>
+      <div class="topbar-logo-mark"><svg height="14" viewBox="0 0 16 16" width="14"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></div>
       <div class="topbar-repo-info">
         <span class="topbar-user">${esc(S.username)}</span>
         <span class="topbar-sep">/</span>
         <span class="topbar-repo">${esc(S.selectedRepo.name)}</span>
       </div>
+      <!-- Desktop action buttons -->
       <div class="topbar-actions">
-        ${canGoBack ? `<button class="topbar-btn" onclick="goBack()">← Back</button>` : ''}
+        ${canBack?`<button class="topbar-btn" onclick="goBack()">← Back</button>`:''}
         <button class="topbar-btn" onclick="goHome()">⌂ Root</button>
-        <button class="topbar-btn" onclick="changeRepo()">⇄ Change Repo</button>
-        <button class="topbar-btn" onclick="S.step='username';render()">⏎ Change User</button>
+        <button class="topbar-btn" onclick="changeRepo()">⇄ Repo</button>
+        <button class="topbar-btn" onclick="S.step='username';render()">⏎ User</button>
       </div>
+      <!-- Mobile: single Files button -->
+      <button class="topbar-files-btn" onclick="openDrawer()">📁 Files</button>
     </div>
 
-    <div class="breadcrumb-bar">
-      ${breadcrumbHTML()}
-    </div>
+    <div class="breadcrumb-bar">${breadcrumbHTML()}</div>
 
     <div class="panel-split">
       <div class="sidebar">
         <div class="sidebar-head">
           <div class="sidebar-title">Files</div>
           <div class="sidebar-search">
-            <span class="input-icon" style="top:50%;transform:translateY(-50%)">🔍</span>
+            <span class="input-icon">🔍</span>
             <input type="text" id="fileSearch" value="${esc(S.fileSearch)}" placeholder="Filter files…"
-              oninput="S.fileSearch=this.value;render()">
+              oninput="S.fileSearch=this.value;render()" autocomplete="off">
           </div>
         </div>
         <div class="file-list">
-          ${S.loading ? `<div style="padding:20px;text-align:center;color:var(--text-dim)"><span class="spinner"></span></div>` : sidebarItems}
-          ${S.error ? `<div class="error-box" style="margin:12px">${esc(S.error)}</div>` : ''}
+          ${S.loading?`<div style="padding:20px;text-align:center"><span class="spinner"></span></div>`:fileListHTML()}
+          ${S.error?`<div class="error-box" style="margin:10px">${esc(S.error)}</div>`:''}
         </div>
       </div>
-
-      <div class="content-area">
-        ${contentHTML}
-      </div>
+      <div class="content-area">${contentPanelHTML()}</div>
     </div>
 
     <div class="footer">Made by Hardik · Enhanced with navigation</div>
+  </div>
+
+  <!-- ══ MOBILE BOTTOM NAV ══ -->
+  <div class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <button class="bnav-btn ${isFilesActive?'bnav-active':''}" onclick="openDrawer()">
+        <span class="bnav-icon">📁</span>
+        <span class="bnav-label">Files</span>
+      </button>
+      <button class="bnav-btn ${!isFilesActive?'bnav-active':''}" onclick="closeDrawer()">
+        <span class="bnav-icon">📄</span>
+        <span class="bnav-label">Content</span>
+      </button>
+      ${canBack
+        ?`<button class="bnav-btn" onclick="goBack()"><span class="bnav-icon">←</span><span class="bnav-label">Back</span></button>`
+        :`<button class="bnav-btn" onclick="goHome()"><span class="bnav-icon">🏠</span><span class="bnav-label">Root</span></button>`}
+      <button class="bnav-btn" onclick="changeRepo()">
+        <span class="bnav-icon">⇄</span>
+        <span class="bnav-label">Repos</span>
+      </button>
+      <button class="bnav-btn" onclick="S.step='username';render()">
+        <span class="bnav-icon">👤</span>
+        <span class="bnav-label">User</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ DRAWER OVERLAY ══ -->
+  <div class="drawer-overlay ${S.drawerOpen?'open':''}" onclick="closeDrawer()"></div>
+
+  <!-- ══ FILE DRAWER (slides up from bottom) ══ -->
+  <div class="drawer ${S.drawerOpen?'open':''}">
+    <div class="drawer-handle" onclick="closeDrawer()">
+      <div class="drawer-handle-pill"></div>
+    </div>
+    <div class="drawer-title-row">
+      <div class="drawer-path">📂 ${esc(S.currentPath||S.selectedRepo.name)}</div>
+      <button class="drawer-close-btn" onclick="closeDrawer()">✕ Close</button>
+    </div>
+    <div class="drawer-search-row">
+      <div class="input-wrap">
+        <span class="input-icon">🔍</span>
+        <input type="text" id="drawerSearch" value="${esc(S.fileSearch)}" placeholder="Filter files…"
+          oninput="S.fileSearch=this.value;render()" autocomplete="off">
+      </div>
+    </div>
+    <div class="drawer-file-list">
+      ${S.loading
+        ?`<div style="padding:24px;text-align:center;color:var(--text-dim)"><span class="spinner"></span> Loading…</div>`
+        :fileListHTML()}
+      ${S.error?`<div class="error-box" style="margin:10px">${esc(S.error)}</div>`:''}
+    </div>
   </div>`;
 
-  if (S.selectedFile && !S.loading) {
-    renderFileContent();
-  }
+  if(S.selectedFile&&!S.loading) renderFileContent();
 }
 
-/* ─── Event handlers accessible from HTML ─── */
-function handleFetchRepos() {
-  var u = document.getElementById('username');
-  S.username = (u ? u.value : S.username).trim();
-  if (S.username) fetchRepos();
+/* ══ Global handlers ══ */
+function handleFetchRepos(){
+  var u=document.getElementById('username');
+  S.username=(u?u.value:S.username).trim();
+  if(S.username) fetchRepos();
+}
+function selectRepoById(name){
+  var r=S.repos.find(x=>x.name===name);
+  if(r) selectRepo(r);
 }
 
-function selectRepoById(name) {
-  var repo = S.repos.find(r => r.name === name);
-  if (repo) selectRepo(repo);
-}
+/* ══ Resize ══ */
+var _rt;
+window.addEventListener('resize',function(){
+  clearTimeout(_rt);
+  _rt=setTimeout(function(){ if(S.step==='viewing') render(); },200);
+});
 
 render();
 </script>
