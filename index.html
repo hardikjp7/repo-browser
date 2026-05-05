@@ -3,580 +3,1054 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>GitHub Repo Browser</title>
+<title>GitHub Repo Browser — Browse Any Public Repo Without GitHub Access</title>
+<meta name="description" content="Browse, copy, and download any public GitHub repository directly in your browser — works even when github.com is blocked on your corporate network." />
+<meta property="og:title" content="GitHub Repo Browser" />
+<meta property="og:description" content="Browse any public GitHub repo without GitHub access. Works behind corporate firewalls." />
+<meta property="og:type" content="website" />
+<meta name="theme-color" content="#080b10" />
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #080b10;
-    --surface: #0e1318;
-    --surface2: #141b24;
-    --border: #1e2a38;
-    --border-bright: #2a3a50;
-    --text: #c9d8e8;
-    --text-muted: #5a7089;
-    --text-dim: #3a5068;
-    --accent: #3b82f6;
-    --accent-glow: rgba(59,130,246,0.15);
-    --green: #22c55e;
-    --green-dim: rgba(34,197,94,0.1);
-    --red: #f87171;
-    --folder: #f59e0b;
-    --radius: 8px;
-    --mono: 'JetBrains Mono', monospace;
-    --sans: 'Syne', sans-serif;
-    --safe-b: env(safe-area-inset-bottom, 0px);
-    --bnav: 58px;
-  }
+:root {
+  --bg: #080b10;
+  --surface: #0e1318;
+  --surface2: #141b24;
+  --border: #1e2a38;
+  --border-bright: #2a3a50;
+  --text: #c9d8e8;
+  --text-muted: #5a7089;
+  --text-dim: #3a5068;
+  --accent: #3b82f6;
+  --accent-glow: rgba(59,130,246,0.15);
+  --green: #22c55e;
+  --green-dim: rgba(34,197,94,0.1);
+  --red: #f87171;
+  --red-dim: rgba(248,113,113,0.1);
+  --yellow: #f59e0b;
+  --folder: #f59e0b;
+  --radius: 8px;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Syne', sans-serif;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --bnav: 58px;
+}
 
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { height:100%; }
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; }
 
-  body {
-    font-family: var(--sans);
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100%;
-    overflow-x: hidden;
-  }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  overflow-x: hidden;
+}
 
-  ::-webkit-scrollbar { width:4px; height:4px; }
-  ::-webkit-scrollbar-track { background:transparent; }
-  ::-webkit-scrollbar-thumb { background:var(--border-bright); border-radius:3px; }
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border-bright); border-radius:3px; }
 
-  body::before {
-    content:''; position:fixed; inset:0;
-    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events:none; z-index:9999; opacity:0.4;
-  }
+body::before {
+  content:''; position:fixed; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:9999; opacity:0.4;
+}
 
-  @keyframes fadeUp {
-    from { opacity:0; transform:translateY(18px); }
-    to   { opacity:1; transform:translateY(0); }
-  }
-  @keyframes spin { to { transform:rotate(360deg); } }
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes toastIn { from{opacity:0;transform:translateY(10px) scale(.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+@keyframes toastOut { from{opacity:1;transform:translateY(0) scale(1)} to{opacity:0;transform:translateY(-6px) scale(.96)} }
 
-  /* ══ SPINNER ══ */
-  .spinner {
-    display:inline-block; width:14px; height:14px;
-    border:2px solid rgba(255,255,255,0.15); border-top-color:var(--accent);
-    border-radius:50%; animation:spin 0.6s linear infinite;
-    vertical-align:middle; flex-shrink:0;
-  }
+/* ══ SPINNER ══ */
+.spinner {
+  display:inline-block; width:14px; height:14px;
+  border:2px solid rgba(255,255,255,0.15); border-top-color:var(--accent);
+  border-radius:50%; animation:spin 0.6s linear infinite;
+  vertical-align:middle; flex-shrink:0;
+}
 
-  /* ══ SHARED INPUTS ══ */
-  input[type="text"] {
-    width:100%; padding:12px 14px 12px 38px;
-    background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
-    font-family:var(--mono); font-size:16px; /* 16px prevents iOS zoom */
-    color:var(--text); outline:none; -webkit-appearance:none;
-    transition:border-color .2s, box-shadow .2s;
-  }
-  input[type="text"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
-  input[type="text"]::placeholder { color:var(--text-dim); }
+/* ══ TOAST ══ */
+#toast-container {
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+  z-index:9000; display:flex; flex-direction:column; gap:8px;
+  align-items:center; pointer-events:none;
+}
+.toast {
+  padding:10px 18px; border-radius:30px; font-size:13px; font-weight:600;
+  font-family:var(--sans); white-space:nowrap;
+  opacity:0; animation:toastIn .22s ease forwards;
+  border:1px solid;
+}
+.toast-hide { animation:toastOut .22s ease forwards; }
+.toast-success { background:rgba(34,197,94,.15); border-color:rgba(34,197,94,.3); color:var(--green); }
+.toast-error   { background:rgba(248,113,113,.15); border-color:rgba(248,113,113,.3); color:var(--red); }
+.toast-info    { background:rgba(59,130,246,.15); border-color:rgba(59,130,246,.3); color:#93c5fd; }
+.toast-warn    { background:rgba(245,158,11,.15); border-color:rgba(245,158,11,.3); color:var(--yellow); }
 
-  .input-icon {
-    position:absolute; left:13px; color:var(--text-dim);
-    pointer-events:none; font-size:14px;
-  }
-  .input-wrap { position:relative; display:flex; align-items:center; }
-  .input-label {
-    display:block; font-size:11px; font-weight:600;
-    letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;
-  }
+/* ══ CONFIRM DIALOG ══ */
+#confirm-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+  z-index:8000; align-items:center; justify-content:center; padding:20px;
+}
+.confirm-box {
+  background:var(--surface); border:1px solid var(--border-bright);
+  border-radius:14px; padding:24px 22px 20px; max-width:340px; width:100%;
+  animation:fadeUp .2s ease both;
+}
+.confirm-msg { font-size:14px; line-height:1.6; margin-bottom:18px; color:var(--text); }
+.confirm-actions { display:flex; gap:8px; justify-content:flex-end; }
+.confirm-btn {
+  padding:9px 18px; border-radius:var(--radius); font-family:var(--sans);
+  font-size:13px; font-weight:700; cursor:pointer; min-height:38px; border:1px solid;
+}
+.confirm-cancel { background:transparent; border-color:var(--border); color:var(--text-muted); }
+.confirm-cancel:hover { background:var(--surface2); }
+.confirm-ok { background:var(--red-dim); border-color:rgba(248,113,113,.3); color:var(--red); }
+.confirm-ok:hover { background:rgba(248,113,113,.18); }
 
-  /* ══ LANDING ══ */
-  .landing {
-    min-height:100vh; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; padding:20px 16px; position:relative;
-  }
-  .landing::after {
-    content:''; position:fixed; width:500px; height:500px;
-    background:radial-gradient(circle, rgba(59,130,246,.08) 0%, transparent 70%);
-    top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none;
-  }
-  .landing-card {
-    width:100%; max-width:440px; background:var(--surface);
-    border:1px solid var(--border); border-radius:16px;
-    padding:36px 28px 32px; position:relative; z-index:1;
-    animation:fadeUp .5s ease both;
-  }
-  @media(max-width:480px){ .landing-card{ padding:26px 18px 24px; border-radius:14px; } }
+/* ══ SETTINGS MODAL ══ */
+#settings-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+  z-index:8000; align-items:flex-start; justify-content:center;
+  padding:60px 16px 20px; overflow-y:auto;
+}
+.settings-box {
+  background:var(--surface); border:1px solid var(--border-bright);
+  border-radius:14px; padding:24px; max-width:440px; width:100%;
+  animation:fadeUp .2s ease both;
+}
+.settings-title {
+  font-size:15px; font-weight:800; letter-spacing:-.02em; margin-bottom:4px; color:#e8f0fe;
+}
+.settings-sub { font-size:12px; color:var(--text-muted); margin-bottom:20px; line-height:1.5; }
+.settings-label {
+  display:block; font-size:11px; font-weight:600; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--text-muted); margin-bottom:7px;
+}
+.settings-input {
+  width:100%; padding:10px 12px; background:var(--bg); border:1px solid var(--border);
+  border-radius:var(--radius); font-family:var(--mono); font-size:13px; color:var(--text);
+  outline:none; -webkit-appearance:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+.settings-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.settings-hint { font-size:11px; color:var(--text-dim); margin-top:6px; line-height:1.5; }
+.settings-hint a { color:var(--accent); }
+.settings-rate-info {
+  margin:16px 0; padding:11px 13px;
+  background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius);
+  font-family:var(--mono); font-size:12px; color:var(--text-muted); line-height:1.6;
+}
+.settings-actions { display:flex; gap:8px; margin-top:18px; flex-wrap:wrap; }
+.settings-btn {
+  padding:10px 18px; border-radius:var(--radius); font-family:var(--sans);
+  font-size:13px; font-weight:700; cursor:pointer; min-height:40px; border:1px solid; flex:1;
+}
+.settings-btn-primary { background:linear-gradient(135deg,#1d4ed8,#3b82f6); border-color:transparent; color:#fff; }
+.settings-btn-secondary { background:transparent; border-color:var(--border); color:var(--text-muted); }
+.settings-btn-danger { background:var(--red-dim); border-color:rgba(248,113,113,.3); color:var(--red); }
+.settings-divider { border:none; border-top:1px solid var(--border); margin:18px 0; }
+.pat-status { display:inline-flex; align-items:center; gap:5px; }
+.pat-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+.pat-dot-active { background:var(--green); box-shadow:0 0 6px var(--green); }
+.pat-dot-none { background:var(--text-dim); }
 
-  .landing-logo { display:flex; align-items:center; gap:10px; margin-bottom:24px; }
-  .logo-mark {
-    width:36px; height:36px; flex-shrink:0;
-    background:linear-gradient(135deg,#1d4ed8,#3b82f6); border-radius:9px;
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 0 20px rgba(59,130,246,.3);
-  }
-  .logo-mark svg { fill:white; }
-  .logo-text { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-.02em; }
-  .logo-text span { color:var(--accent); }
+/* ══ SHARED INPUTS ══ */
+input[type="text"], input[type="password"] {
+  width:100%; padding:12px 14px 12px 38px;
+  background:var(--bg); border:1px solid var(--border); border-radius:var(--radius);
+  font-family:var(--mono); font-size:16px;
+  color:var(--text); outline:none; -webkit-appearance:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+input[type="text"]:focus, input[type="password"]:focus {
+  border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow);
+}
+input[type="text"]::placeholder, input[type="password"]::placeholder { color:var(--text-dim); }
+.input-icon {
+  position:absolute; left:13px; top:50%; transform:translateY(-50%);
+  color:var(--text-dim); pointer-events:none; font-size:14px;
+}
+.input-wrap { position:relative; display:flex; align-items:center; }
+.input-label {
+  display:block; font-size:11px; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;
+}
 
-  .landing-headline {
-    font-size:26px; font-weight:800; line-height:1.2;
-    letter-spacing:-.04em; color:#e8f0fe; margin-bottom:8px;
-  }
-  @media(max-width:380px){ .landing-headline{ font-size:22px; } }
-  .landing-sub { font-size:14px; color:var(--text-muted); margin-bottom:28px; line-height:1.5; }
+/* ══ LANDING ══ */
+.landing {
+  min-height:100vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; padding:20px 16px; position:relative;
+}
+.landing::after {
+  content:''; position:fixed; width:500px; height:500px;
+  background:radial-gradient(circle,rgba(59,130,246,.08) 0%,transparent 70%);
+  top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none;
+}
+.landing-card {
+  width:100%; max-width:440px; background:var(--surface);
+  border:1px solid var(--border); border-radius:16px;
+  padding:36px 28px 32px; position:relative; z-index:1;
+  animation:fadeUp .5s ease both;
+}
+@media(max-width:480px){ .landing-card{ padding:26px 18px 24px; border-radius:14px; } }
+.landing-logo { display:flex; align-items:center; gap:10px; margin-bottom:24px; }
+.logo-mark {
+  width:36px; height:36px; flex-shrink:0;
+  background:linear-gradient(135deg,#1d4ed8,#3b82f6); border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 20px rgba(59,130,246,.3);
+}
+.logo-mark svg { fill:white; }
+.logo-text { font-size:17px; font-weight:700; color:var(--text); letter-spacing:-.02em; }
+.logo-text span { color:var(--accent); }
+.landing-headline { font-size:26px; font-weight:800; line-height:1.2; letter-spacing:-.04em; color:#e8f0fe; margin-bottom:8px; }
+@media(max-width:380px){ .landing-headline{ font-size:22px; } }
+.landing-sub { font-size:14px; color:var(--text-muted); margin-bottom:28px; line-height:1.5; }
+.input-group { margin-bottom:10px; }
+.btn-primary {
+  width:100%; padding:14px 20px;
+  background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+  color:#fff; border:none; border-radius:var(--radius);
+  font-family:var(--sans); font-size:15px; font-weight:700; letter-spacing:.02em;
+  cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  margin-top:18px; min-height:50px;
+  box-shadow:0 4px 20px rgba(59,130,246,.3);
+  transition:box-shadow .2s, transform .15s;
+}
+.btn-primary:active { transform:scale(.98); box-shadow:0 2px 10px rgba(59,130,246,.2); }
+.btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+.error-box {
+  margin-top:12px; padding:12px 14px;
+  background:rgba(248,113,113,.08); border:1px solid rgba(248,113,113,.2);
+  border-radius:var(--radius); color:var(--red); font-size:13px; font-family:var(--mono); line-height:1.5;
+}
+.landing-pat-row {
+  margin-top:14px; display:flex; align-items:center; justify-content:center; gap:6px;
+  font-size:11px; color:var(--text-dim);
+}
+.landing-pat-link {
+  color:var(--accent); cursor:pointer; font-weight:600; font-size:11px;
+  background:none; border:none; text-decoration:underline; font-family:var(--sans);
+}
 
-  .input-group { margin-bottom:10px; }
+/* ══ REPO SELECT ══ */
+.repo-select-screen { min-height:100vh; display:flex; flex-direction:column; animation:fadeUp .3s ease both; }
+.rs-topbar {
+  display:flex; align-items:center; justify-content:center;
+  padding:13px 16px; background:var(--surface); border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:20;
+}
+.rs-topbar-inner { display:flex; align-items:center; gap:10px; width:100%; max-width:600px; }
+.btn-ghost {
+  display:flex; align-items:center; gap:5px; padding:9px 14px;
+  background:transparent; border:1px solid var(--border); border-radius:var(--radius);
+  font-family:var(--sans); font-size:13px; font-weight:600; color:var(--text-muted);
+  cursor:pointer; white-space:nowrap; min-height:42px;
+}
+.btn-ghost:active { background:var(--surface2); }
+.rs-title { font-size:15px; font-weight:700; letter-spacing:-.02em; flex:1; min-width:0; overflow:hidden; }
+.rs-title span { color:var(--accent); }
+.rs-body-outer { flex:1; display:flex; justify-content:center; align-items:flex-start; padding:28px 16px; }
+.rs-body {
+  width:100%; max-width:600px; background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:20px; display:flex; flex-direction:column;
+  max-height:calc(100vh - 120px);
+}
+.repo-count { font-size:11px; color:var(--text-dim); margin-bottom:10px; font-family:var(--mono); }
+.repo-grid { display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch; }
+@media(max-width:720px){
+  .rs-topbar { justify-content:flex-start; }
+  .rs-topbar-inner { max-width:none; }
+  .rs-body-outer { padding:12px; align-items:stretch; }
+  .rs-body { max-width:none; background:transparent; border:none; border-radius:0; padding:0; max-height:none; }
+}
+.repo-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px 16px; cursor:pointer; display:flex;
+  align-items:flex-start; justify-content:space-between; gap:10px; min-height:64px;
+  width:100%; text-align:left;
+  transition:border-color .15s, background .15s;
+}
+.repo-card:hover { border-color:var(--border-bright); background:var(--surface2); }
+.repo-card:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+.repo-card:active { background:var(--surface2); border-color:var(--accent); }
+.repo-card-left { flex:1; min-width:0; }
+.repo-card-name {
+  font-size:14px; font-weight:700; color:var(--accent); margin-bottom:4px;
+  font-family:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.repo-card-desc { font-size:12px; color:var(--text-muted); line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.repo-card-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+.branch-tag {
+  font-family:var(--mono); font-size:10px; padding:2px 7px;
+  background:var(--green-dim); color:var(--green);
+  border-radius:20px; border:1px solid rgba(34,197,94,.2); white-space:nowrap;
+}
+.lang-tag { font-family:var(--mono); font-size:10px; color:var(--text-dim); white-space:nowrap; }
 
-  .btn-primary {
-    width:100%; padding:14px 20px;
-    background:linear-gradient(135deg,#1d4ed8,#3b82f6);
-    color:#fff; border:none; border-radius:var(--radius);
-    font-family:var(--sans); font-size:15px; font-weight:700; letter-spacing:.02em;
-    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
-    margin-top:18px; min-height:50px;
-    box-shadow:0 4px 20px rgba(59,130,246,.3);
-    transition:box-shadow .2s, transform .15s;
-  }
-  .btn-primary:active { transform:scale(.98); box-shadow:0 2px 10px rgba(59,130,246,.2); }
-  .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+/* ══ VIEWER ══ */
+.viewer {
+  display:flex; flex-direction:column;
+  height:100vh; height:100dvh; overflow:hidden;
+  animation:fadeUp .3s ease both;
+}
 
-  .error-box {
-    margin-top:12px; padding:12px 14px;
-    background:rgba(248,113,113,.08); border:1px solid rgba(248,113,113,.2);
-    border-radius:var(--radius); color:var(--red); font-size:13px; font-family:var(--mono); line-height:1.5;
-  }
+/* Top bar */
+.topbar {
+  display:flex; align-items:center; gap:10px; padding:10px 16px;
+  background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; z-index:40;
+}
+.topbar-logo-mark {
+  width:26px; height:26px; background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+  border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.topbar-logo-mark svg { fill:white; width:14px; height:14px; }
+.topbar-repo-info {
+  display:flex; align-items:center; gap:4px;
+  font-family:var(--mono); font-size:13px; min-width:0; flex:1; overflow:hidden;
+}
+.topbar-user { color:var(--text-muted); flex-shrink:0; }
+.topbar-sep { color:var(--border-bright); flex-shrink:0; }
+.topbar-repo { color:var(--text); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.topbar-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.topbar-btn {
+  display:flex; align-items:center; gap:4px; padding:6px 10px;
+  background:transparent; border:1px solid var(--border); border-radius:6px;
+  font-family:var(--sans); font-size:11px; font-weight:600; color:var(--text-muted);
+  cursor:pointer; white-space:nowrap; min-height:32px;
+}
+.topbar-btn:hover { background:var(--surface2); border-color:var(--border-bright); color:var(--text); }
+.topbar-btn:active { background:var(--surface2); }
+.topbar-btn-icon { padding:6px 8px; }
 
-  /* ══ REPO SELECT ══ */
-  .repo-select-screen {
-    min-height:100vh; display:flex; flex-direction:column;
-    animation:fadeUp .3s ease both;
-  }
-  .rs-topbar {
-    display:flex; align-items:center; justify-content:center;
-    padding:13px 16px;
-    background:var(--surface); border-bottom:1px solid var(--border);
-    position:sticky; top:0; z-index:20;
-  }
-  .rs-topbar-inner {
-    display:flex; align-items:center; gap:10px;
-    width:100%; max-width:600px;
-  }
-  .btn-ghost {
-    display:flex; align-items:center; gap:5px; padding:9px 14px;
-    background:transparent; border:1px solid var(--border); border-radius:var(--radius);
-    font-family:var(--sans); font-size:13px; font-weight:600; color:var(--text-muted);
-    cursor:pointer; white-space:nowrap; min-height:42px;
-  }
-  .btn-ghost:active { background:var(--surface2); }
-  .rs-title { font-size:15px; font-weight:700; letter-spacing:-.02em; flex:1; min-width:0; overflow:hidden; }
-  .rs-title span { color:var(--accent); }
-  .rs-body-outer {
-    flex:1; display:flex; justify-content:center; align-items:flex-start;
-    padding:28px 16px; overflow:hidden;
-  }
-  .rs-body {
-    width:100%; max-width:600px;
-    background:var(--surface); border:1px solid var(--border); border-radius:12px;
-    padding:20px; display:flex; flex-direction:column;
-    max-height:calc(100vh - 120px); overflow:hidden;
-  }
-  .repo-count { font-size:11px; color:var(--text-dim); margin-bottom:10px; font-family:var(--mono); }
-  .repo-grid { display:flex; flex-direction:column; gap:8px; overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch; }
-  @media(max-width:720px) {
-    .rs-topbar { justify-content:flex-start; }
-    .rs-topbar-inner { max-width:none; }
-    .rs-body-outer { padding:12px; align-items:stretch; }
-    .rs-body { max-width:none; background:transparent; border:none; border-radius:0; padding:0; max-height:none; overflow:visible; }
-  }
+/* Branch select */
+.branch-select-wrap { position:relative; display:flex; align-items:center; flex-shrink:0; }
+.branch-select {
+  padding:5px 28px 5px 10px; background:var(--surface2); border:1px solid var(--border);
+  border-radius:6px; font-family:var(--mono); font-size:11px; color:var(--green);
+  cursor:pointer; outline:none; appearance:none; -webkit-appearance:none;
+  min-height:32px; max-width:140px;
+}
+.branch-select:focus { border-color:var(--accent); }
+.branch-select-arrow {
+  position:absolute; right:8px; pointer-events:none; color:var(--text-dim); font-size:10px;
+}
 
-  .repo-card {
-    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
-    padding:14px 16px; cursor:pointer; display:flex;
-    align-items:flex-start; justify-content:space-between; gap:10px; min-height:64px;
-  }
-  .repo-card:active { background:var(--surface2); border-color:var(--accent); }
-  .repo-card-left { flex:1; min-width:0; }
-  .repo-card-name {
-    font-size:14px; font-weight:700; color:var(--accent); margin-bottom:4px;
-    font-family:var(--mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .repo-card-desc {
-    font-size:12px; color:var(--text-muted); line-height:1.4;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .repo-card-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
-  .branch-tag {
-    font-family:var(--mono); font-size:10px; padding:2px 7px;
-    background:var(--green-dim); color:var(--green);
-    border-radius:20px; border:1px solid rgba(34,197,94,.2); white-space:nowrap;
-  }
-  .lang-tag { font-family:var(--mono); font-size:10px; color:var(--text-dim); white-space:nowrap; }
+/* PAT indicator */
+.pat-indicator {
+  width:7px; height:7px; border-radius:50%; flex-shrink:0;
+  cursor:pointer; transition:box-shadow .2s;
+}
+.pat-indicator:hover { transform:scale(1.3); }
+.pat-active   { background:var(--green); box-shadow:0 0 8px rgba(34,197,94,.5); }
+.pat-inactive { background:var(--text-dim); }
 
-  /* ══ VIEWER ══ */
-  .viewer {
-    display:flex; flex-direction:column;
-    height:100vh; height:100dvh; overflow:hidden;
-    animation:fadeUp .3s ease both;
-  }
+/* Mobile topbar adjustments */
+@media(max-width:720px){
+  .topbar { padding:0 12px; height:52px; }
+  .topbar-repo-info { font-size:12px; }
+  .topbar-actions { display:none!important; }
+}
 
-  /* Top bar */
-  .topbar {
-    display:flex; align-items:center; gap:10px; padding:10px 16px;
-    background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; z-index:40;
-  }
-  .topbar-logo-mark {
-    width:26px; height:26px; background:linear-gradient(135deg,#1d4ed8,#3b82f6);
-    border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
-  }
-  .topbar-logo-mark svg { fill:white; width:14px; height:14px; }
-  .topbar-repo-info {
-    display:flex; align-items:center; gap:4px;
-    font-family:var(--mono); font-size:13px; min-width:0; flex:1; overflow:hidden;
-  }
-  .topbar-user { color:var(--text-muted); flex-shrink:0; }
-  .topbar-sep { color:var(--border-bright); flex-shrink:0; }
-  .topbar-repo { color:var(--text); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .topbar-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
-  /* Mobile-only Files button — hidden by default on desktop */
-  .topbar-files-btn { display:none; }
-  .topbar-btn {
-    display:flex; align-items:center; gap:4px; padding:6px 10px;
-    background:transparent; border:1px solid var(--border); border-radius:6px;
-    font-family:var(--sans); font-size:11px; font-weight:600; color:var(--text-muted);
-    cursor:pointer; white-space:nowrap; min-height:32px;
-  }
-  .topbar-btn:hover { background:var(--surface2); border-color:var(--border-bright); color:var(--text); }
-  .topbar-btn:active { background:var(--surface2); }
+/* Breadcrumb */
+.breadcrumb-bar {
+  display:flex; align-items:center; gap:3px; padding:8px 14px;
+  background:var(--bg); border-bottom:1px solid var(--border);
+  flex-shrink:0; overflow-x:auto; -webkit-overflow-scrolling:touch;
+}
+.breadcrumb-bar::-webkit-scrollbar { height:0; }
+.bc-item {
+  display:flex; align-items:center; gap:4px;
+  font-family:var(--mono); font-size:12px; color:var(--accent);
+  cursor:pointer; white-space:nowrap; background:none; border:none;
+  padding:4px 6px; border-radius:4px; min-height:30px;
+}
+.bc-item:active { background:var(--accent-glow); }
+.bc-item.current { color:var(--text); cursor:default; font-weight:600; }
+.bc-item.current:active { background:transparent; }
+.bc-sep { color:var(--text-dim); font-size:11px; flex-shrink:0; }
 
-  /* Breadcrumb */
-  .breadcrumb-bar {
-    display:flex; align-items:center; gap:3px; padding:8px 14px;
-    background:var(--bg); border-bottom:1px solid var(--border);
-    flex-shrink:0; overflow-x:auto; -webkit-overflow-scrolling:touch;
-  }
-  .breadcrumb-bar::-webkit-scrollbar { height:0; }
-  .bc-item {
-    display:flex; align-items:center; gap:4px;
-    font-family:var(--mono); font-size:12px; color:var(--accent);
-    cursor:pointer; white-space:nowrap; background:none; border:none;
-    padding:4px 6px; border-radius:4px; min-height:30px;
-  }
-  .bc-item:active { background:var(--accent-glow); }
-  .bc-item.current { color:var(--text); cursor:default; font-weight:600; }
-  .bc-item.current:active { background:transparent; }
-  .bc-sep { color:var(--text-dim); font-size:11px; flex-shrink:0; }
+/* Panel split */
+.panel-split { display:flex; flex:1; overflow:hidden; }
 
-  /* Panel split */
-  .panel-split { display:flex; flex:1; overflow:hidden; }
+/* Sidebar */
+.sidebar {
+  width:268px; background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; flex-shrink:0; overflow:hidden;
+}
+.sidebar-head { padding:12px 14px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.sidebar-title-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.sidebar-title { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); }
+.select-mode-btn {
+  font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px;
+  border:1px solid var(--border); background:transparent; color:var(--text-muted);
+  cursor:pointer; letter-spacing:.04em;
+}
+.select-mode-btn.active { border-color:var(--accent); color:var(--accent); background:var(--accent-glow); }
+.sidebar-search { position:relative; }
+.sidebar-search input { font-size:13px; padding:8px 10px 8px 32px; border-radius:6px; }
+.sidebar-search .input-icon { left:10px; font-size:12px; }
+.file-list { flex:1; overflow-y:auto; padding:4px 0; -webkit-overflow-scrolling:touch; }
 
-  /* Sidebar — desktop only */
-  .sidebar {
-    width:268px; background:var(--surface); border-right:1px solid var(--border);
-    display:flex; flex-direction:column; flex-shrink:0; overflow:hidden;
-  }
-  .sidebar-head { padding:12px 14px 10px; border-bottom:1px solid var(--border); flex-shrink:0; }
-  .sidebar-title {
-    font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
-    color:var(--text-dim); margin-bottom:8px;
-  }
-  .sidebar-search { position:relative; }
-  .sidebar-search input { font-size:13px; padding:8px 10px 8px 32px; border-radius:6px; }
-  .sidebar-search .input-icon { left:10px; top:50%; transform:translateY(-50%); font-size:12px; }
-  .file-list { flex:1; overflow-y:auto; padding:4px 0; -webkit-overflow-scrolling:touch; }
+/* Selection footer */
+.select-footer {
+  padding:10px 14px; border-top:1px solid var(--border); background:var(--surface2);
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+}
+.select-footer-count { font-size:11px; color:var(--text-muted); font-family:var(--mono); flex:1; }
+.pack-btn {
+  padding:7px 13px; border-radius:6px; font-family:var(--sans); font-size:11px; font-weight:700;
+  background:linear-gradient(135deg,#1d4ed8,#3b82f6); color:#fff; border:none; cursor:pointer;
+  display:flex; align-items:center; gap:4px;
+}
+.pack-btn:disabled { opacity:.4; cursor:not-allowed; }
+.clear-btn {
+  padding:7px 10px; border-radius:6px; font-family:var(--sans); font-size:11px; font-weight:600;
+  background:transparent; color:var(--text-dim); border:1px solid var(--border); cursor:pointer;
+}
 
-  /* File items */
-  .back-entry {
-    display:flex; align-items:center; gap:8px; padding:10px 14px;
-    color:var(--text-muted); font-size:13px; font-family:var(--mono);
-    border:none; background:none; width:100%; text-align:left;
-    border-bottom:1px solid var(--border); margin-bottom:4px; cursor:pointer; min-height:46px;
-  }
-  .back-entry:active { background:var(--surface2); }
-  .back-icon { font-size:12px; color:var(--text-dim); }
+/* File items */
+.back-entry {
+  display:flex; align-items:center; gap:8px; padding:10px 14px;
+  color:var(--text-muted); font-size:13px; font-family:var(--mono);
+  border:none; background:none; width:100%; text-align:left;
+  border-bottom:1px solid var(--border); margin-bottom:4px; cursor:pointer; min-height:46px;
+}
+.back-entry:active { background:var(--surface2); }
+.back-icon { font-size:12px; color:var(--text-dim); }
+.file-item {
+  display:flex; align-items:center; gap:8px; padding:9px 14px;
+  cursor:pointer; font-size:13px; font-family:var(--mono); color:var(--text);
+  border:none; background:none; width:100%; text-align:left; position:relative; min-height:46px;
+}
+.file-item:hover { background:rgba(255,255,255,.02); }
+.file-item:focus { outline:none; background:var(--accent-glow); }
+.file-item:active { background:var(--surface2); }
+.file-item.active { background:var(--accent-glow); color:#93c5fd; }
+.file-item.active::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--accent);
+}
+.file-item.selected { background:rgba(59,130,246,.08); }
+.file-item-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.file-item-icon { font-size:14px; flex-shrink:0; }
+.folder-icon { color:var(--folder); }
+.file-size { font-size:10px; color:var(--text-dim); flex-shrink:0; }
 
-  .file-item {
-    display:flex; align-items:center; gap:8px; padding:9px 14px;
-    cursor:pointer; font-size:13px; font-family:var(--mono); color:var(--text);
-    border:none; background:none; width:100%; text-align:left; position:relative; min-height:46px;
-  }
-  .file-item:active { background:var(--surface2); }
-  .file-item.active { background:var(--accent-glow); color:#93c5fd; }
-  .file-item.active::before {
-    content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--accent);
-  }
-  .file-item-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .file-item-icon { font-size:14px; flex-shrink:0; }
-  .folder-icon { color:var(--folder); }
-  .file-size { font-size:10px; color:var(--text-dim); flex-shrink:0; }
+/* Cache dot */
+.cache-dot {
+  width:5px; height:5px; border-radius:50%; flex-shrink:0;
+  background:var(--green); opacity:.5;
+  title:"Cached";
+}
 
-  /* Content area */
-  .content-area { flex:1; overflow:hidden; display:flex; flex-direction:column; }
-  .content-header {
-    padding:12px 16px; border-bottom:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-    flex-shrink:0; background:var(--surface); gap:8px; flex-wrap:wrap;
-  }
-  .content-file-name {
-    font-family:var(--mono); font-size:13px; font-weight:600; color:var(--text);
-    display:flex; align-items:center; gap:6px; min-width:0; flex:1;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .content-file-size {
-    font-size:10px; color:var(--text-dim); background:var(--surface2);
-    padding:2px 7px; border-radius:4px; flex-shrink:0;
-  }
-  .content-actions { display:flex; gap:6px; flex-shrink:0; }
-  .action-btn {
-    display:flex; align-items:center; gap:4px; padding:6px 11px;
-    background:var(--surface2); border:1px solid var(--border); border-radius:6px;
-    font-family:var(--sans); font-size:11px; font-weight:600; color:var(--text-muted);
-    cursor:pointer; min-height:32px; white-space:nowrap; text-decoration:none;
-  }
-  .action-btn:active { border-color:var(--border-bright); color:var(--text); background:var(--border); }
+/* Checkbox */
+.file-checkbox {
+  width:14px; height:14px; border-radius:3px; border:1px solid var(--border-bright);
+  flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:10px; color:var(--accent);
+  transition:background .1s, border-color .1s;
+}
+.file-checkbox.checked { background:var(--accent); border-color:var(--accent); color:#fff; }
 
-  .content-body { flex:1; overflow-y:auto; padding:20px 16px; -webkit-overflow-scrolling:touch; }
+/* Content area */
+.content-area { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+.content-header {
+  padding:12px 16px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0; background:var(--surface); gap:8px; flex-wrap:wrap;
+}
+.content-file-name {
+  font-family:var(--mono); font-size:13px; font-weight:600; color:var(--text);
+  display:flex; align-items:center; gap:6px; min-width:0; flex:1;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.content-file-size {
+  font-size:10px; color:var(--text-dim); background:var(--surface2);
+  padding:2px 7px; border-radius:4px; flex-shrink:0;
+}
+.content-actions { display:flex; gap:6px; flex-shrink:0; }
+.action-btn {
+  display:flex; align-items:center; gap:4px; padding:6px 11px;
+  background:var(--surface2); border:1px solid var(--border); border-radius:6px;
+  font-family:var(--sans); font-size:11px; font-weight:600; color:var(--text-muted);
+  cursor:pointer; min-height:32px; white-space:nowrap; text-decoration:none;
+}
+.action-btn:hover { border-color:var(--border-bright); color:var(--text); }
+.action-btn:active { background:var(--border); }
 
-  .code-container { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:#0a0f14; }
-  .code-container pre { margin:0; padding:16px; overflow-x:auto; background:transparent!important; }
-  .code-container code { font-family:var(--mono); font-size:12px; line-height:1.7; background:transparent!important; }
+.content-body { flex:1; overflow-y:auto; padding:20px 16px; -webkit-overflow-scrolling:touch; }
+.code-container { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:#0a0f14; }
+.code-container pre { margin:0; padding:16px; overflow-x:auto; background:transparent!important; }
+.code-container code { font-family:var(--mono); font-size:12px; line-height:1.7; background:transparent!important; }
 
-  .markdown-body { max-width:820px; font-weight:400; line-height:1.7; font-size:15px; }
-  .markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6 {
-    font-family:var(--sans); font-weight:800; letter-spacing:-.02em;
-    color:#e8f0fe; margin:24px 0 12px; line-height:1.2;
-  }
-  .markdown-body h1 { font-size:1.9em; border-bottom:1px solid var(--border); padding-bottom:10px; }
-  .markdown-body h2 { font-size:1.4em; border-bottom:1px solid var(--border); padding-bottom:8px; }
-  .markdown-body h3 { font-size:1.1em; }
-  .markdown-body p { margin-bottom:14px; }
-  .markdown-body a { color:var(--accent); text-decoration:none; }
-  .markdown-body a:hover { text-decoration:underline; }
-  .markdown-body code {
-    font-family:var(--mono); font-size:85%; padding:2px 6px;
-    background:var(--surface2); border-radius:4px; color:#93c5fd; word-break:break-word;
-  }
-  .markdown-body pre { background:#0a0f14; border:1px solid var(--border); border-radius:var(--radius); padding:14px; overflow-x:auto; margin-bottom:14px; }
-  .markdown-body pre code { background:none; padding:0; font-size:12px; color:inherit; }
-  .markdown-body ul,.markdown-body ol { margin-bottom:14px; padding-left:1.5em; }
-  .markdown-body li { margin-bottom:4px; }
-  .markdown-body blockquote {
-    padding:10px 14px; border-left:3px solid var(--accent); color:var(--text-muted);
-    margin:0 0 14px; background:var(--accent-glow); border-radius:0 6px 6px 0;
-  }
-  .markdown-body table { width:100%; border-collapse:collapse; margin-bottom:14px; font-size:13px; display:block; overflow-x:auto; }
-  .markdown-body th,.markdown-body td { padding:8px 12px; border:1px solid var(--border); text-align:left; }
-  .markdown-body th { background:var(--surface2); font-weight:600; font-size:11px; letter-spacing:.05em; text-transform:uppercase; }
-  .markdown-body img { max-width:100%; border-radius:var(--radius); border:1px solid var(--border); }
+.markdown-body { max-width:820px; font-weight:400; line-height:1.7; font-size:15px; }
+.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6 {
+  font-family:var(--sans); font-weight:800; letter-spacing:-.02em;
+  color:#e8f0fe; margin:24px 0 12px; line-height:1.2;
+}
+.markdown-body h1 { font-size:1.9em; border-bottom:1px solid var(--border); padding-bottom:10px; }
+.markdown-body h2 { font-size:1.4em; border-bottom:1px solid var(--border); padding-bottom:8px; }
+.markdown-body h3 { font-size:1.1em; }
+.markdown-body p { margin-bottom:14px; }
+.markdown-body a { color:var(--accent); text-decoration:none; }
+.markdown-body a:hover { text-decoration:underline; }
+.markdown-body code { font-family:var(--mono); font-size:85%; padding:2px 6px; background:var(--surface2); border-radius:4px; color:#93c5fd; word-break:break-word; }
+.markdown-body pre { background:#0a0f14; border:1px solid var(--border); border-radius:var(--radius); padding:14px; overflow-x:auto; margin-bottom:14px; }
+.markdown-body pre code { background:none; padding:0; font-size:12px; color:inherit; }
+.markdown-body ul,.markdown-body ol { margin-bottom:14px; padding-left:1.5em; }
+.markdown-body li { margin-bottom:4px; }
+.markdown-body blockquote { padding:10px 14px; border-left:3px solid var(--accent); color:var(--text-muted); margin:0 0 14px; background:var(--accent-glow); border-radius:0 6px 6px 0; }
+.markdown-body table { width:100%; border-collapse:collapse; margin-bottom:14px; font-size:13px; display:block; overflow-x:auto; }
+.markdown-body th,.markdown-body td { padding:8px 12px; border:1px solid var(--border); text-align:left; }
+.markdown-body th { background:var(--surface2); font-weight:600; font-size:11px; letter-spacing:.05em; text-transform:uppercase; }
+.markdown-body img { max-width:100%; border-radius:var(--radius); border:1px solid var(--border); }
 
-  .empty-state {
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    height:100%; color:var(--text-dim); gap:10px; padding:40px 20px; text-align:center;
-  }
-  .empty-icon { font-size:46px; opacity:.4; }
-  .empty-title { font-size:17px; font-weight:700; color:var(--text-muted); letter-spacing:-.02em; }
-  .empty-desc { font-size:13px; max-width:250px; line-height:1.5; }
+.empty-state {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:100%; color:var(--text-dim); gap:10px; padding:40px 20px; text-align:center;
+}
+.empty-icon { font-size:46px; opacity:.4; }
+.empty-title { font-size:17px; font-weight:700; color:var(--text-muted); letter-spacing:-.02em; }
+.empty-desc { font-size:13px; max-width:250px; line-height:1.5; }
+.loading-overlay { display:flex; align-items:center; justify-content:center; height:100%; gap:8px; color:var(--text-muted); font-size:14px; }
 
-  .loading-overlay { display:flex; align-items:center; justify-content:center; height:100%; gap:8px; color:var(--text-muted); font-size:14px; }
+.binary-view {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:40px; gap:12px; color:var(--text-muted); text-align:center;
+}
+.binary-icon { font-size:40px; opacity:.4; }
+.binary-title { font-size:15px; font-weight:700; color:var(--text-muted); }
+.binary-desc { font-size:12px; max-width:260px; line-height:1.5; }
+.img-view { display:flex; justify-content:center; padding:16px; }
+.img-view img { max-width:100%; border-radius:var(--radius); border:1px solid var(--border); }
 
-  .img-view { display:flex; justify-content:center; padding:16px; }
-  .img-view img { max-width:100%; border-radius:var(--radius); border:1px solid var(--border); }
+.footer {
+  padding:11px 16px; text-align:center; font-size:10px; color:var(--text-dim);
+  border-top:1px solid var(--border); background:var(--surface);
+  letter-spacing:.04em; font-family:var(--mono); flex-shrink:0;
+}
+iframe, embed { width:100%; height:100%; border:none; border-radius:var(--radius); }
 
-  .footer {
-    padding:11px 16px; text-align:center; font-size:10px; color:var(--text-dim);
-    border-top:1px solid var(--border); background:var(--surface);
-    letter-spacing:.04em; font-family:var(--mono); flex-shrink:0;
-  }
+/* ══════════════════════════════════════
+   MOBILE — ≤ 720px
+══════════════════════════════════════ */
+@media(max-width:720px) {
+  .sidebar { display:none!important; }
+  .viewer { height:100vh; height:100dvh; padding-bottom:calc(var(--bnav) + var(--safe-b)); }
+  .content-body { padding:14px 12px; }
+  .content-header { padding:9px 12px; flex-wrap:nowrap; }
+  .content-file-name { font-size:12px; }
+  .action-btn { padding:6px 9px; font-size:10px; }
+  .viewer .footer { display:none; }
+  .breadcrumb-bar { padding:6px 12px; }
+  .bc-item { font-size:11px; padding:3px 5px; }
+}
 
-  iframe, embed { width:100%; height:100%; border:none; border-radius:var(--radius); }
+/* ══ BOTTOM NAV ══ */
+.bottom-nav {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  height:calc(var(--bnav) + var(--safe-b));
+  padding-bottom:var(--safe-b);
+  background:var(--surface); border-top:1px solid var(--border);
+  z-index:400;
+}
+.bottom-nav-inner { display:flex; height:var(--bnav); }
+.bnav-btn {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:2px; border:none; background:none; color:var(--text-muted);
+  font-family:var(--sans); cursor:pointer; padding:0 2px;
+  border-right:1px solid var(--border); min-width:0;
+}
+.bnav-btn:last-child { border-right:none; }
+.bnav-btn:active { background:var(--surface2); }
+.bnav-btn.bnav-active { color:var(--accent); }
+.bnav-icon { font-size:20px; line-height:1; }
+.bnav-label { font-size:9px; font-weight:600; letter-spacing:.02em; color:inherit; }
+@media(max-width:720px) { .bottom-nav { display:block; } }
 
-  /* ══════════════════════════════════════
-     MOBILE — ≤ 720px
-  ══════════════════════════════════════ */
-  @media(max-width:720px) {
-    /* Kill the desktop sidebar */
-    .sidebar { display:none!important; }
-    /* Kill desktop topbar actions — replaced by bottom nav */
-    .topbar-actions { display:none!important; }
-    /* On mobile topbar: just logo + repo info + a Files pill button */
-    .topbar { padding:0 12px; height:52px; }
-    .topbar-repo-info { font-size:12px; }
-    /* Mobile-only Files button inside topbar */
-    .topbar-files-btn {
-      display:flex; align-items:center; gap:5px;
-      padding:7px 13px; background:var(--accent-glow);
-      border:1px solid var(--accent); border-radius:20px;
-      font-family:var(--sans); font-size:12px; font-weight:700;
-      color:var(--accent); cursor:pointer; flex-shrink:0;
-      white-space:nowrap;
-    }
-    .topbar-files-btn:active { background:rgba(59,130,246,.25); }
+/* ══ DRAWER OVERLAY ══ */
+.drawer-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.7);
+  z-index:500; opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.drawer-overlay.open { opacity:1; pointer-events:all; }
+@media(max-width:720px) { .drawer-overlay { display:block; } }
 
-    /* Breadcrumb smaller */
-    .breadcrumb-bar { padding:6px 12px; }
-    .bc-item { font-size:11px; padding:3px 5px; }
-
-    /* Viewer must fit viewport minus bottom nav */
-    .viewer {
-      height:100vh; height:100dvh;
-      padding-bottom:calc(var(--bnav) + var(--safe-b));
-    }
-    /* Content fills the rest */
-    .content-body { padding:14px 12px; }
-    .content-header { padding:9px 12px; flex-wrap:nowrap; }
-    .content-file-name { font-size:12px; }
-    .action-btn { padding:6px 9px; font-size:10px; }
-
-    /* Footer hidden on mobile to save space */
-    .viewer .footer { display:none; }
-  }
-
-  /* ══ BOTTOM NAV ══ */
-  .bottom-nav {
-    display:none; /* shown only in mobile media query below */
-    position:fixed; bottom:0; left:0; right:0;
-    height:calc(var(--bnav) + var(--safe-b));
-    padding-bottom:var(--safe-b);
-    background:var(--surface); border-top:1px solid var(--border);
-    z-index:400;
-  }
-  .bottom-nav-inner { display:flex; height:var(--bnav); }
-  .bnav-btn {
-    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:2px; border:none; background:none; color:var(--text-muted);
-    font-family:var(--sans); cursor:pointer; padding:0 2px;
-    border-right:1px solid var(--border); min-width:0;
-  }
-  .bnav-btn:last-child { border-right:none; }
-  .bnav-btn:active { background:var(--surface2); }
-  .bnav-btn.bnav-active { color:var(--accent); }
-  .bnav-icon { font-size:20px; line-height:1; }
-  .bnav-label { font-size:9px; font-weight:600; letter-spacing:.02em; color:inherit; }
-
-  @media(max-width:720px) { .bottom-nav { display:block; } }
-
-  /* ══ DRAWER OVERLAY ══ */
-  .drawer-overlay {
-    display:none;
-    position:fixed; inset:0; background:rgba(0,0,0,.7);
-    z-index:500; opacity:0; pointer-events:none;
-    transition:opacity .25s;
-  }
-  .drawer-overlay.open { opacity:1; pointer-events:all; }
-  @media(max-width:720px) { .drawer-overlay { display:block; } }
-
-  /* ══ BOTTOM DRAWER ══ */
-  .drawer {
-    display:none;
-    position:fixed; bottom:0; left:0; right:0;
-    /* leave room for bottom nav at the bottom */
-    height:calc(80vh - var(--bnav));
-    background:var(--surface);
-    border-top:2px solid var(--accent);
-    border-radius:16px 16px 0 0;
-    z-index:600;
-    transform:translateY(100%);
-    transition:transform .3s cubic-bezier(.32,0,.16,1);
-    flex-direction:column;
-    overflow:hidden;
-  }
-  .drawer.open { transform:translateY(0); }
-  @media(max-width:720px) { .drawer { display:flex; } }
-
-  .drawer-handle {
-    display:flex; justify-content:center; align-items:center;
-    padding:10px 0 4px; cursor:pointer; flex-shrink:0;
-  }
-  .drawer-handle-pill { width:40px; height:4px; background:var(--border-bright); border-radius:2px; }
-
-  .drawer-title-row {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:2px 14px 10px; flex-shrink:0;
-  }
-  .drawer-path {
-    font-family:var(--mono); font-size:11px; color:var(--text-muted);
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60%;
-  }
-  .drawer-close-btn {
-    font-size:11px; font-weight:700; color:var(--text-dim); background:none;
-    border:1px solid var(--border); border-radius:5px; padding:4px 10px; cursor:pointer;
-  }
-  .drawer-close-btn:active { background:var(--surface2); }
-
-  .drawer-search-row {
-    padding:0 12px 10px; flex-shrink:0;
-    border-bottom:1px solid var(--border);
-  }
-  .drawer-search-row .input-wrap input {
-    font-size:16px; padding:9px 12px 9px 36px; border-radius:6px;
-  }
-  .drawer-search-row .input-icon { left:12px; top:50%; transform:translateY(-50%); }
-
-  .drawer-file-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:4px 0; }
+/* ══ BOTTOM DRAWER ══ */
+.drawer {
+  display:none; position:fixed; bottom:0; left:0; right:0;
+  height:calc(min(80vh, 80dvh) - var(--bnav));
+  background:var(--surface); border-top:2px solid var(--accent);
+  border-radius:16px 16px 0 0; z-index:600;
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.32,0,.16,1);
+  flex-direction:column; overflow:hidden;
+}
+/* Landscape fix */
+@media(max-height:500px) and (max-width:720px) {
+  .drawer { height:calc(100dvh - var(--bnav) - 20px); }
+}
+.drawer.open { transform:translateY(0); }
+@media(max-width:720px) { .drawer { display:flex; } }
+.drawer-handle { display:flex; justify-content:center; align-items:center; padding:10px 0 4px; cursor:pointer; flex-shrink:0; }
+.drawer-handle-pill { width:40px; height:4px; background:var(--border-bright); border-radius:2px; }
+.drawer-title-row { display:flex; align-items:center; justify-content:space-between; padding:2px 14px 10px; flex-shrink:0; }
+.drawer-path { font-family:var(--mono); font-size:11px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60%; }
+.drawer-actions { display:flex; gap:6px; align-items:center; }
+.drawer-close-btn {
+  font-size:11px; font-weight:700; color:var(--text-dim); background:none;
+  border:1px solid var(--border); border-radius:5px; padding:4px 10px; cursor:pointer;
+}
+.drawer-close-btn:active { background:var(--surface2); }
+.drawer-select-btn {
+  font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px;
+  border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer;
+}
+.drawer-select-btn.active { border-color:var(--accent); color:var(--accent); background:var(--accent-glow); }
+.drawer-search-row { padding:0 12px 10px; flex-shrink:0; border-bottom:1px solid var(--border); }
+.drawer-search-row .input-wrap input { font-size:16px; padding:9px 12px 9px 36px; border-radius:6px; }
+.drawer-search-row .input-icon { left:12px; }
+.drawer-file-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:4px 0; }
+.drawer-select-footer {
+  padding:10px 14px; border-top:1px solid var(--border); background:var(--surface2);
+  display:flex; align-items:center; gap:8px;
+}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="toast-container" aria-live="polite" aria-label="Notifications"></div>
+
+<!-- ══ CONFIRM DIALOG ══ -->
+<div id="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-msg">
+  <div class="confirm-box">
+    <p class="confirm-msg" id="confirm-msg"></p>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-cancel" id="confirm-cancel">Cancel</button>
+      <button class="confirm-btn confirm-ok" id="confirm-ok">Leave</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS MODAL ══ -->
+<div id="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="settings-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="settings-title">⚙ Settings</div>
+      <button class="confirm-btn confirm-cancel" style="padding:5px 12px;font-size:12px" onclick="closeSettings()">✕ Close</button>
+    </div>
+    <p class="settings-sub">Configure authentication and manage the offline cache.</p>
+
+    <label class="settings-label" for="pat-input">Personal Access Token</label>
+    <div class="input-wrap" style="margin-bottom:0">
+      <span class="input-icon">🔑</span>
+      <input type="password" id="pat-input" class="settings-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+        style="padding:10px 12px 10px 36px;font-size:14px"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <p class="settings-hint">
+      A PAT raises your rate limit from 60 to 5,000 requests/hr. Generate one at
+      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a>
+      (no scopes needed for public repos).
+    </p>
+
+    <div class="settings-rate-info" id="settings-rate-info">
+      <div id="pat-status-line">Status: checking…</div>
+      <div id="rate-limit-line" style="margin-top:4px;display:none"></div>
+    </div>
+
+    <hr class="settings-divider">
+
+    <label class="settings-label">Offline Cache</label>
+    <p class="settings-hint" style="margin-bottom:12px">
+      File trees and contents are cached for 24 hours. A green dot (●) in the file list indicates a cached item.
+    </p>
+    <div id="cache-info" style="font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:12px"></div>
+
+    <div class="settings-actions">
+      <button class="settings-btn settings-btn-primary" onclick="savePAT()">Save Token</button>
+      <button class="settings-btn settings-btn-secondary" onclick="clearPAT()">Clear Token</button>
+      <button class="settings-btn settings-btn-danger" onclick="clearCache()">Clear Cache</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ══════════════════════════════════════════
-   STATE
+   INDEXEDDB CACHE
 ══════════════════════════════════════════ */
-var S = {
-  step: 'username',
-  username: '', repos: [], repoSearch: '',
-  selectedRepo: null, selectedBranch: 'main',
-  files: [], currentPath: '',
-  selectedFile: null, content: '',
-  loading: false, error: '', fileSearch: '',
-  drawerOpen: false,
-};
+var DB_NAME='repo-browser-cache', DB_VER=2, _db=null;
+var CACHE_TTL=24*60*60*1000;
 
-var pathHistory = [];
-
-/* ══ Utils ══ */
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function fmtSize(b){if(!b)return '';if(b<1024)return b+'B';if(b<1048576)return (b/1024).toFixed(1)+'K';return (b/1048576).toFixed(1)+'M';}
-function mob(){ return window.innerWidth<=720; }
-
-/* ══ API ══ */
-function api(url){
-  return fetch(url).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+function initDB(){
+  return new Promise(function(resolve){
+    try {
+      var req=indexedDB.open(DB_NAME,DB_VER);
+      req.onupgradeneeded=function(e){
+        var d=e.target.result;
+        if(!d.objectStoreNames.contains('files')) d.createObjectStore('files',{keyPath:'key'});
+        if(!d.objectStoreNames.contains('contents')) d.createObjectStore('contents',{keyPath:'key'});
+      };
+      req.onsuccess=function(e){ _db=e.target.result; resolve(_db); };
+      req.onerror=function(){ resolve(null); };
+    } catch(e){ resolve(null); }
+  });
 }
 
+function dbGet(store,key){
+  return new Promise(function(resolve){
+    if(!_db) return resolve(null);
+    try {
+      var tx=_db.transaction(store,'readonly');
+      var req=tx.objectStore(store).get(key);
+      req.onsuccess=function(){ resolve(req.result||null); };
+      req.onerror=function(){ resolve(null); };
+    } catch(e){ resolve(null); }
+  });
+}
+
+function dbSet(store,key,value){
+  if(!_db) return;
+  try {
+    var tx=_db.transaction(store,'readwrite');
+    tx.objectStore(store).put({key:key,value:value,ts:Date.now()});
+  } catch(e){}
+}
+
+function dbClear(){
+  return new Promise(function(resolve){
+    if(!_db) return resolve();
+    try {
+      var tx=_db.transaction(['files','contents'],'readwrite');
+      tx.objectStore('files').clear();
+      tx.objectStore('contents').clear();
+      tx.oncomplete=resolve; tx.onerror=resolve;
+    } catch(e){ resolve(); }
+  });
+}
+
+function dbCount(){
+  return new Promise(function(resolve){
+    if(!_db) return resolve({files:0,contents:0});
+    var counts={files:0,contents:0};
+    var done=0;
+    ['files','contents'].forEach(function(s){
+      try {
+        var tx=_db.transaction(s,'readonly');
+        var req=tx.objectStore(s).count();
+        req.onsuccess=function(){ counts[s]=req.result; if(++done===2) resolve(counts); };
+        req.onerror=function(){ if(++done===2) resolve(counts); };
+      } catch(e){ if(++done===2) resolve(counts); }
+    });
+  });
+}
+
+/* In-memory set of cached file-tree keys for dot indicator */
+var _cachedKeys={};
+
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+var S={
+  step:'username',
+  username:'', repos:[], repoSearch:'',
+  selectedRepo:null, selectedBranch:'main',
+  branches:[],
+  files:[], currentPath:'',
+  selectedFile:null, content:'',
+  loading:false, error:'', fileSearch:'',
+  drawerOpen:false,
+  selectMode:false, selectedFiles:{},
+  contentLoading:false,
+  rateRemaining:null, rateLimit:null,
+};
+var pathHistory=[];
+
+/* ══════════════════════════════════════════
+   FOCUS PRESERVATION
+══════════════════════════════════════════ */
+function saveFocus(){
+  var el=document.activeElement;
+  if(!el||el===document.body||!el.id) return null;
+  return{id:el.id,start:el.selectionStart,end:el.selectionEnd};
+}
+function restoreFocus(saved){
+  if(!saved||!saved.id) return;
+  requestAnimationFrame(function(){
+    var el=document.getElementById(saved.id);
+    if(!el) return;
+    el.focus();
+    if(saved.start!=null){
+      try{ el.setSelectionRange(saved.start,saved.end); }catch(e){}
+    }
+  });
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+function showToast(msg,type,dur){
+  type=type||'info'; dur=dur||2500;
+  var c=document.getElementById('toast-container');
+  if(!c) return;
+  var t=document.createElement('div');
+  t.className='toast toast-'+type;
+  t.textContent=msg;
+  t.setAttribute('role','status');
+  c.appendChild(t);
+  setTimeout(function(){ t.classList.add('toast-hide'); setTimeout(function(){ t.remove(); },300); },dur);
+}
+
+/* ══════════════════════════════════════════
+   CONFIRM DIALOG
+══════════════════════════════════════════ */
+function showConfirm(msg,onOk,okLabel){
+  var ov=document.getElementById('confirm-overlay');
+  var msgEl=document.getElementById('confirm-msg');
+  var okBtn=document.getElementById('confirm-ok');
+  var cancelBtn=document.getElementById('confirm-cancel');
+  msgEl.textContent=msg;
+  okBtn.textContent=okLabel||'Leave';
+  ov.style.display='flex';
+  okBtn.onclick=function(){ ov.style.display='none'; onOk(); };
+  cancelBtn.onclick=function(){ ov.style.display='none'; };
+}
+
+/* ══════════════════════════════════════════
+   SETTINGS / PAT
+══════════════════════════════════════════ */
+function openSettings(){
+  var patInput=document.getElementById('pat-input');
+  var existing=localStorage.getItem('ghpat')||'';
+  if(patInput) patInput.value=existing;
+  updatePatStatusLine();
+  dbCount().then(function(c){
+    var el=document.getElementById('cache-info');
+    if(el) el.textContent=c.files+' directory entries, '+c.contents+' file contents cached';
+  });
+  document.getElementById('settings-overlay').style.display='flex';
+}
+function closeSettings(){
+  document.getElementById('settings-overlay').style.display='none';
+}
+function savePAT(){
+  var v=(document.getElementById('pat-input').value||'').trim();
+  if(v){ localStorage.setItem('ghpat',v); showToast('Token saved ✓','success'); }
+  else { localStorage.removeItem('ghpat'); showToast('Token cleared','info'); }
+  updatePatStatusLine();
+  renderPATIndicator();
+  closeSettings();
+}
+function clearPAT(){
+  localStorage.removeItem('ghpat');
+  var el=document.getElementById('pat-input');
+  if(el) el.value='';
+  showToast('Token cleared','info');
+  updatePatStatusLine();
+  renderPATIndicator();
+}
+function clearCache(){
+  dbClear().then(function(){
+    _cachedKeys={};
+    showToast('Cache cleared','success');
+    dbCount().then(function(c){
+      var el=document.getElementById('cache-info');
+      if(el) el.textContent='0 directory entries, 0 file contents cached';
+    });
+  });
+}
+function updatePatStatusLine(){
+  var pat=localStorage.getItem('ghpat')||'';
+  var el=document.getElementById('pat-status-line');
+  if(!el) return;
+  if(pat){
+    el.innerHTML='<span class="pat-dot pat-dot-active" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle"></span>Token active — up to 5,000 requests/hour';
+    checkRateLimit();
+  } else {
+    el.innerHTML='<span class="pat-dot pat-dot-none" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--text-dim);margin-right:6px;vertical-align:middle"></span>No token — 60 requests/hour limit';
+    var rle=document.getElementById('rate-limit-line');
+    if(rle) rle.style.display='none';
+  }
+}
+function checkRateLimit(){
+  fetch('https://api.github.com/rate_limit',{headers:getHeaders()})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var core=d.rate||d.resources&&d.resources.core;
+      if(!core) return;
+      var reset=new Date(core.reset*1000).toLocaleTimeString();
+      var el=document.getElementById('rate-limit-line');
+      if(el){
+        el.style.display='block';
+        el.textContent='Remaining: '+core.remaining+'/'+core.limit+' · Resets at '+reset;
+      }
+    }).catch(function(){});
+}
+function renderPATIndicator(){
+  var el=document.getElementById('pat-dot');
+  if(!el) return;
+  var hasPat=!!localStorage.getItem('ghpat');
+  el.className='pat-indicator '+(hasPat?'pat-active':'pat-inactive');
+  el.title=hasPat?'PAT active (5000 req/hr)':'No PAT — 60 req/hr. Click to add token.';
+}
+function hasPAT(){ return !!localStorage.getItem('ghpat'); }
+
+/* ══════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════ */
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]); }); }
+function fmtSize(b){ if(!b) return''; if(b<1024) return b+'B'; if(b<1048576) return(b/1024).toFixed(1)+'K'; return(b/1048576).toFixed(1)+'M'; }
+function mob(){ return window.innerWidth<=720; }
+
+var BINARY_EXTS=/\.(zip|gz|tar|7z|rar|exe|bin|dll|so|dylib|woff|woff2|ttf|otf|eot|mp3|mp4|avi|mov|wav|ogg|webm|ico|dmg|pkg|deb|rpm|class|jar|pyc|pyo)$/i;
+var IMAGE_EXTS=/\.(png|jpg|jpeg|gif|svg|webp|bmp|tiff|ico)$/i;
+var PDF_EXT=/\.pdf$/i;
+function isBinaryFile(name){ return BINARY_EXTS.test(name)&&!IMAGE_EXTS.test(name)&&!PDF_EXT.test(name); }
+
+/* ══════════════════════════════════════════
+   API
+══════════════════════════════════════════ */
+function getHeaders(){
+  var h={'Accept':'application/vnd.github.v3+json'};
+  var pat=localStorage.getItem('ghpat');
+  if(pat) h['Authorization']='Bearer '+pat;
+  return h;
+}
+
+function api(url){
+  if(!url.startsWith('http')) url='https://api.github.com'+url;
+  return fetch(url,{headers:getHeaders()}).then(function(r){
+    var rem=r.headers.get('X-RateLimit-Remaining');
+    var lim=r.headers.get('X-RateLimit-Limit');
+    if(rem!==null){ S.rateRemaining=parseInt(rem); S.rateLimit=parseInt(lim)||5000; updateRateFooter(); }
+    if(r.status===403||r.status===429){
+      if(rem==='0') throw new Error('RATE_LIMIT');
+    }
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  });
+}
+
+function updateRateFooter(){
+  var el=document.getElementById('rate-footer-counter');
+  if(!el||S.rateRemaining===null) return;
+  var pct=Math.round((S.rateRemaining/S.rateLimit)*100);
+  var color=pct>50?'var(--green)':pct>20?'var(--yellow)':'var(--red)';
+  el.innerHTML='<span style="color:'+color+'">'+S.rateRemaining+'</span>/'+S.rateLimit+' req left';
+}
+
+/* ══════════════════════════════════════════
+   FETCH WITH CACHE
+══════════════════════════════════════════ */
 function fetchRepos(){
   S.loading=true; S.error=''; render();
   api('https://api.github.com/users/'+S.username+'/repos?per_page=100&sort=updated')
-    .then(d=>{S.repos=d; S.step='repo-select'; S.loading=false; render();})
-    .catch(()=>{S.error='User not found or API rate limit reached.'; S.loading=false; render();});
+    .then(function(d){
+      S.repos=d; S.step='repo-select'; S.loading=false; render();
+    })
+    .catch(function(e){
+      S.error=e.message==='RATE_LIMIT'?'Rate limit reached. Add a PAT in ⚙ Settings.':'User not found or API rate limit reached.';
+      S.loading=false; render();
+    });
 }
 
-function fetchFiles(path, push){
-  if(push && path!==S.currentPath) pathHistory.push(S.currentPath);
+function cacheKey(path){ return S.username+'/'+S.selectedRepo.name+'/'+S.selectedBranch+'/'+path; }
+
+function fetchFiles(path,push){
+  if(push&&path!==S.currentPath) pathHistory.push(S.currentPath);
   S.loading=true; S.error=''; S.fileSearch='';
-  // on mobile, open drawer to show loading
   if(mob()) S.drawerOpen=true;
   render();
-  api('https://api.github.com/repos/'+S.username+'/'+S.selectedRepo.name+'/contents/'+path+'?ref='+S.selectedBranch)
-    .then(d=>{
-      S.files=Array.isArray(d)?d:[d];
-      S.currentPath=path; S.loading=false; render();
-    })
-    .catch(()=>{S.error='Failed to load directory.'; S.loading=false; render();});
+
+  var key=cacheKey(path);
+  dbGet('files',key).then(function(cached){
+    if(cached&&(Date.now()-cached.ts)<CACHE_TTL){
+      _cachedKeys[key]=true;
+      S.files=cached.value; S.currentPath=path; S.loading=false; render();
+      return;
+    }
+    api('https://api.github.com/repos/'+S.username+'/'+S.selectedRepo.name+'/contents/'+path+'?ref='+S.selectedBranch)
+      .then(function(d){
+        S.files=Array.isArray(d)?d:[d];
+        dbSet('files',key,S.files);
+        _cachedKeys[key]=true;
+        S.currentPath=path; S.loading=false; render();
+      })
+      .catch(function(e){
+        S.error=e.message==='RATE_LIMIT'?'Rate limit reached. Add a PAT in ⚙ Settings.':'Failed to load directory.';
+        S.loading=false; render();
+      });
+  });
 }
 
 function fetchContent(file){
-  S.loading=true; S.error='';
-  if(mob()){ S.drawerOpen=false; }
+  if(isBinaryFile(file.name)){
+    S.selectedFile=file; S.content='__BINARY__';
+    if(mob()) S.drawerOpen=false;
+    render(); return;
+  }
+  S.contentLoading=true; S.error='';
+  if(mob()) S.drawerOpen=false;
   render();
-  fetch(file.download_url)
-    .then(r=>{if(!r.ok)throw new Error();return r.text();})
-    .then(t=>{S.content=t; S.selectedFile=file; S.loading=false; render();})
-    .catch(()=>{S.error='Failed to load file content.'; S.loading=false; render();});
+
+  dbGet('contents',file.download_url).then(function(cached){
+    if(cached&&(Date.now()-cached.ts)<CACHE_TTL){
+      S.content=cached.value; S.selectedFile=file; S.contentLoading=false;
+      render(); return;
+    }
+    fetch(file.download_url,{headers:getHeaders()})
+      .then(function(r){ if(!r.ok) throw new Error(); return r.text(); })
+      .then(function(t){
+        S.content=t; S.selectedFile=file; S.contentLoading=false;
+        dbSet('contents',file.download_url,t);
+        render();
+      })
+      .catch(function(){
+        S.error='Failed to load file content.'; S.contentLoading=false; render();
+      });
+  });
 }
 
-/* ══ Navigation ══ */
+function fetchBranches(){
+  api('https://api.github.com/repos/'+S.username+'/'+S.selectedRepo.name+'/branches?per_page=100')
+    .then(function(d){
+      S.branches=d||[];
+      /* also fetch tags */
+      api('https://api.github.com/repos/'+S.username+'/'+S.selectedRepo.name+'/tags?per_page=30')
+        .then(function(tags){
+          tags.forEach(function(t){ S.branches.push({name:'tag: '+t.name,isTag:true}); });
+          renderBranchSelect();
+        }).catch(function(){ renderBranchSelect(); });
+    })
+    .catch(function(){ S.branches=[]; });
+}
+
+function renderBranchSelect(){
+  var el=document.getElementById('branch-select');
+  if(!el) return;
+  el.innerHTML=S.branches.map(function(b){
+    var name=b.isTag?b.name:b.name;
+    var rawName=b.isTag?b.name.replace('tag: ',''):b.name;
+    return'<option value="'+esc(rawName)+'" '+(rawName===S.selectedBranch?'selected':'')+'>'+esc(name)+'</option>';
+  }).join('');
+}
+
+/* ══════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════ */
 function handleFileClick(file){
+  if(S.selectMode&&file.type==='file'){
+    toggleFileSelection(file); return;
+  }
   if(file.type==='dir'){ S.selectedFile=null; fetchFiles(file.path,true); }
-  else { S.selectedFile=file; fetchContent(file); }
+  else { fetchContent(file); }
 }
 
 function goBack(){
@@ -599,18 +1073,95 @@ function navigateTo(idx){
 function selectRepo(repo){
   S.selectedRepo=repo; S.selectedBranch=repo.default_branch||'main';
   S.step='viewing'; S.currentPath=''; S.selectedFile=null; S.content='';
+  S.branches=[]; S.selectMode=false; S.selectedFiles={};
   pathHistory=[]; S.drawerOpen=false;
+  fetchFiles('',false);
+  fetchBranches();
+}
+
+function switchBranch(branch){
+  S.selectedBranch=branch; S.currentPath=''; S.selectedFile=null;
+  S.content=''; pathHistory=[]; S.drawerOpen=false;
   fetchFiles('',false);
 }
 
 function changeRepo(){
-  S.step='repo-select'; S.selectedFile=null; S.content='';
-  S.currentPath=''; pathHistory=[]; S.drawerOpen=false; render();
+  if(S.selectedFile||S.currentPath){
+    showConfirm('Leave the current file and go back to repo selection?',function(){
+      S.step='repo-select'; S.selectedFile=null; S.content='';
+      S.currentPath=''; pathHistory=[]; S.drawerOpen=false; render();
+    },'Go to Repos');
+  } else {
+    S.step='repo-select'; S.selectedFile=null; S.content='';
+    S.currentPath=''; pathHistory=[]; S.drawerOpen=false; render();
+  }
+}
+
+function changeUser(){
+  showConfirm('Leave this repo and go back to the username screen?',function(){
+    S.step='username'; S.selectedFile=null; S.content='';
+    S.currentPath=''; pathHistory=[]; S.drawerOpen=false; render();
+  },'Change User');
+}
+
+/* ══════════════════════════════════════════
+   MULTI-SELECT / PACK & COPY
+══════════════════════════════════════════ */
+function toggleSelectMode(){
+  S.selectMode=!S.selectMode;
+  if(!S.selectMode) S.selectedFiles={};
+  var f=saveFocus(); render(); restoreFocus(f);
+}
+
+function toggleFileSelection(file){
+  if(S.selectedFiles[file.path]) delete S.selectedFiles[file.path];
+  else S.selectedFiles[file.path]=file;
+  var f=saveFocus(); render(); restoreFocus(f);
+}
+
+function clearSelection(){ S.selectedFiles={}; var f=saveFocus(); render(); restoreFocus(f); }
+
+function packAndCopy(){
+  var files=Object.values(S.selectedFiles);
+  if(!files.length){ showToast('No files selected','warn'); return; }
+  showToast('Fetching '+files.length+' files…','info',4000);
+
+  Promise.all(files.map(function(f){
+    return dbGet('contents',f.download_url).then(function(cached){
+      if(cached&&(Date.now()-cached.ts)<CACHE_TTL) return{name:f.path,content:cached.value};
+      return fetch(f.download_url,{headers:getHeaders()}).then(function(r){ return r.text(); })
+        .then(function(t){ dbSet('contents',f.download_url,t); return{name:f.path,content:t}; });
+    });
+  })).then(function(results){
+    var bundle=results.map(function(r){
+      return'// ═══════════════════════════════\n// '+r.name+'\n// ═══════════════════════════════\n\n'+r.content;
+    }).join('\n\n');
+    copyToClipboard(bundle,files.length+' file'+(files.length>1?'s':'')+' packed to clipboard ✓');
+  }).catch(function(){ showToast('Failed to fetch some files','error'); });
+}
+
+function copyToClipboard(text,successMsg){
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(text)
+      .then(function(){ showToast(successMsg||'Copied ✓','success'); })
+      .catch(function(){ fallbackCopy(text,successMsg); });
+  } else { fallbackCopy(text,successMsg); }
+}
+
+function fallbackCopy(text,successMsg){
+  var ta=document.createElement('textarea');
+  ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try {
+    document.execCommand('copy');
+    showToast(successMsg||'Copied ✓','success');
+  } catch(e){ showToast('Copy failed — try HTTPS or a modern browser','error'); }
+  ta.remove();
 }
 
 function downloadFile(){
   if(!S.selectedFile) return;
-  fetch(S.selectedFile.download_url).then(r=>r.blob()).then(blob=>{
+  fetch(S.selectedFile.download_url,{headers:getHeaders()}).then(function(r){ return r.blob(); }).then(function(blob){
     var a=document.createElement('a');
     a.href=URL.createObjectURL(blob); a.download=S.selectedFile.name;
     document.body.appendChild(a); a.click(); a.remove();
@@ -618,122 +1169,174 @@ function downloadFile(){
 }
 
 function copyContent(){
-  if(S.content) navigator.clipboard.writeText(S.content).catch(()=>{});
+  if(S.content&&S.content!=='__BINARY__')
+    copyToClipboard(S.content,'Copied to clipboard ✓');
 }
 
 /* ══ Drawer ══ */
-function openDrawer(){ S.drawerOpen=true; render(); }
-function closeDrawer(){ S.drawerOpen=false; render(); }
+function openDrawer(){ S.drawerOpen=true; var f=saveFocus(); render(); restoreFocus(f); }
+function closeDrawer(){ S.drawerOpen=false; var f=saveFocus(); render(); restoreFocus(f); }
 
 /* ══ Filtered lists ══ */
 function filteredFiles(){
   var t=S.fileSearch.toLowerCase();
-  return S.files.filter(f=>f.name.toLowerCase().includes(t));
+  return S.files.filter(function(f){ return f.name.toLowerCase().includes(t); });
 }
 function filteredRepos(){
   var t=S.repoSearch.toLowerCase();
-  return S.repos.filter(r=>r.name.toLowerCase().includes(t)||(r.description&&r.description.toLowerCase().includes(t)));
+  return S.repos.filter(function(r){ return r.name.toLowerCase().includes(t)||(r.description&&r.description.toLowerCase().includes(t)); });
 }
 
 /* ══ Icons ══ */
 function fileIcon(f){
-  if(f.type==='dir') return '<span class="file-item-icon folder-icon">📁</span>';
+  if(f.type==='dir') return'<span class="file-item-icon folder-icon" aria-hidden="true">📁</span>';
   var n=f.name.toLowerCase();
-  if(/\.(js|jsx)$/.test(n)) return '<span class="file-item-icon">🟨</span>';
-  if(/\.(ts|tsx)$/.test(n)) return '<span class="file-item-icon">🔷</span>';
-  if(/\.py$/.test(n))       return '<span class="file-item-icon">🐍</span>';
-  if(/\.(md|mdx)$/.test(n)) return '<span class="file-item-icon">📝</span>';
-  if(/\.json$/.test(n))     return '<span class="file-item-icon">🔵</span>';
-  if(/\.html$/.test(n))     return '<span class="file-item-icon">🌐</span>';
-  if(/\.(css|scss)$/.test(n))return '<span class="file-item-icon">🎨</span>';
-  if(/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)) return '<span class="file-item-icon">🖼️</span>';
-  if(/\.(sh|bash)$/.test(n)) return '<span class="file-item-icon">⚡</span>';
-  if(/\.(yml|yaml)$/.test(n))return '<span class="file-item-icon">⚙️</span>';
-  if(/\.java$/.test(n))      return '<span class="file-item-icon">☕</span>';
-  if(/\.(c|cpp|h)$/.test(n)) return '<span class="file-item-icon">🔧</span>';
-  return '<span class="file-item-icon">📄</span>';
+  if(/\.(js|jsx|mjs)$/.test(n)) return'<span class="file-item-icon" aria-hidden="true">🟨</span>';
+  if(/\.(ts|tsx)$/.test(n))     return'<span class="file-item-icon" aria-hidden="true">🔷</span>';
+  if(/\.py$/.test(n))           return'<span class="file-item-icon" aria-hidden="true">🐍</span>';
+  if(/\.(md|mdx)$/.test(n))    return'<span class="file-item-icon" aria-hidden="true">📝</span>';
+  if(/\.json$/.test(n))         return'<span class="file-item-icon" aria-hidden="true">🔵</span>';
+  if(/\.html$/.test(n))         return'<span class="file-item-icon" aria-hidden="true">🌐</span>';
+  if(/\.(css|scss|less)$/.test(n)) return'<span class="file-item-icon" aria-hidden="true">🎨</span>';
+  if(/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)) return'<span class="file-item-icon" aria-hidden="true">🖼️</span>';
+  if(/\.(sh|bash|zsh)$/.test(n)) return'<span class="file-item-icon" aria-hidden="true">⚡</span>';
+  if(/\.(yml|yaml)$/.test(n))   return'<span class="file-item-icon" aria-hidden="true">⚙️</span>';
+  if(/\.java$/.test(n))         return'<span class="file-item-icon" aria-hidden="true">☕</span>';
+  if(/\.(c|cpp|h|hpp)$/.test(n)) return'<span class="file-item-icon" aria-hidden="true">🔧</span>';
+  if(/\.go$/.test(n))           return'<span class="file-item-icon" aria-hidden="true">🐹</span>';
+  if(/\.rs$/.test(n))           return'<span class="file-item-icon" aria-hidden="true">🦀</span>';
+  if(/\.rb$/.test(n))           return'<span class="file-item-icon" aria-hidden="true">💎</span>';
+  if(/\.php$/.test(n))          return'<span class="file-item-icon" aria-hidden="true">🐘</span>';
+  if(/\.swift$/.test(n))        return'<span class="file-item-icon" aria-hidden="true">🍎</span>';
+  if(isBinaryFile(n))           return'<span class="file-item-icon" aria-hidden="true">📦</span>';
+  return'<span class="file-item-icon" aria-hidden="true">📄</span>';
 }
 
-/* ══ File list HTML (shared sidebar + drawer) ══ */
+/* ══ File list HTML ══ */
 function fileListHTML(){
   var files=filteredFiles();
-  var dirs=files.filter(f=>f.type==='dir').sort((a,b)=>a.name.localeCompare(b.name));
-  var docs=files.filter(f=>f.type==='file').sort((a,b)=>a.name.localeCompare(b.name));
+  var dirs=files.filter(function(f){ return f.type==='dir'; }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+  var docs=files.filter(function(f){ return f.type==='file'; }).sort(function(a,b){ return a.name.localeCompare(b.name); });
   var h='';
   if(S.currentPath){
     var prev=pathHistory.length&&pathHistory[pathHistory.length-1]!==''
       ?(pathHistory[pathHistory.length-1].split('/').pop()||S.selectedRepo.name)
       :S.selectedRepo.name;
-    h+=`<button class="back-entry" onclick="goBack()"><span class="back-icon">←</span><span style="font-size:12px">${esc(prev)}</span></button>`;
+    h+='<button class="back-entry" onclick="goBack()" aria-label="Go back to '+esc(prev)+'"><span class="back-icon" aria-hidden="true">←</span><span style="font-size:12px">'+esc(prev)+'</span></button>';
   }
   dirs.forEach(function(d){
-    h+=`<button class="file-item" onclick='handleFileClick(${JSON.stringify(d)})'>${fileIcon(d)}<span class="file-item-name">${esc(d.name)}</span><span style="color:var(--text-dim);font-size:11px">›</span></button>`;
+    var cached=_cachedKeys[cacheKey(d.path)];
+    h+='<button class="file-item" onclick=\'handleFileClick('+JSON.stringify(d)+')\' aria-label="Open folder '+esc(d.name)+'">'
+      +fileIcon(d)+'<span class="file-item-name">'+esc(d.name)+'</span>'
+      +(cached?'<span class="cache-dot" title="Cached" aria-hidden="true"></span>':'')
+      +'<span aria-hidden="true" style="color:var(--text-dim);font-size:11px">›</span></button>';
   });
   docs.forEach(function(f){
-    var a=S.selectedFile&&S.selectedFile.path===f.path;
-    h+=`<button class="file-item ${a?'active':''}" onclick='handleFileClick(${JSON.stringify(f)})'>${fileIcon(f)}<span class="file-item-name">${esc(f.name)}</span>${f.size?`<span class="file-size">${fmtSize(f.size)}</span>`:''}</button>`;
+    var active=S.selectedFile&&S.selectedFile.path===f.path;
+    var selected=!!S.selectedFiles[f.path];
+    var cached=_cachedKeys[f.download_url]||false;
+    var checkHTML=S.selectMode
+      ?'<span class="file-checkbox '+(selected?'checked':'')+'\" aria-hidden="true">'+(selected?'✓':'')+'</span>'
+      :'';
+    h+='<button class="file-item'+(active?' active':'')+(selected?' selected':'')+'" '
+      +'onclick=\'handleFileClick('+JSON.stringify(f)+')\' '
+      +'aria-label="'+(active?'Currently viewing: ':'')+esc(f.name)+'" '
+      +'aria-pressed="'+(active?'true':'false')+'">'
+      +checkHTML+fileIcon(f)
+      +'<span class="file-item-name">'+esc(f.name)+'</span>'
+      +(cached?'<span class="cache-dot" title="Cached" aria-hidden="true"></span>':'')
+      +(f.size?'<span class="file-size">'+fmtSize(f.size)+'</span>':'')
+      +'</button>';
   });
-  if(!h&&!S.loading) h=`<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px">No files</div>`;
+  if(!h&&!S.loading) h='<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:13px">No files found</div>';
   return h;
+}
+
+/* ══ Selection footer ══ */
+function selectionFooterHTML(){
+  var count=Object.keys(S.selectedFiles).length;
+  return'<div class="select-footer">'
+    +'<span class="select-footer-count">'+count+' file'+(count!==1?'s':'')+' selected</span>'
+    +'<button class="clear-btn" onclick="clearSelection()">✕ Clear</button>'
+    +'<button class="pack-btn" onclick="packAndCopy()" '+(count===0?'disabled':'')+' aria-label="Copy all selected files to clipboard">📋 Pack & Copy</button>'
+    +'</div>';
 }
 
 /* ══ Content panel ══ */
 function contentPanelHTML(){
-  if(S.loading) return `<div class="loading-overlay"><span class="spinner"></span> Loading…</div>`;
-  if(S.selectedFile) return `
-    <div class="content-header">
-      <div class="content-file-name">${fileIcon(S.selectedFile)} ${esc(S.selectedFile.name)}${S.selectedFile.size?`<span class="content-file-size">${fmtSize(S.selectedFile.size)}</span>`:''}</div>
-      <div class="content-actions">
-        <button class="action-btn" onclick="copyContent()">⎘ Copy</button>
-        <button class="action-btn" onclick="downloadFile()">↓ DL</button>
-        <a href="${S.selectedFile.html_url}" target="_blank" class="action-btn" style="text-decoration:none">↗ GH</a>
-      </div>
-    </div>
-    <div class="content-body"><div id="file-view"></div></div>`;
-  return `<div class="empty-state">
-    <div class="empty-icon">📂</div>
-    <div class="empty-title">${esc(S.currentPath?S.currentPath.split('/').pop():S.selectedRepo?S.selectedRepo.name:'')}</div>
-    <div class="empty-desc">Select a file from the ${mob()?'Files tab':'sidebar'} to view its contents.</div>
-  </div>`;
+  if(S.contentLoading) return'<div class="loading-overlay"><span class="spinner"></span> Loading file…</div>';
+  if(S.selectedFile){
+    var isBin=S.content==='__BINARY__';
+    return'<div class="content-header">'
+      +'<div class="content-file-name">'+fileIcon(S.selectedFile)+' '+esc(S.selectedFile.name)
+      +(S.selectedFile.size?'<span class="content-file-size">'+fmtSize(S.selectedFile.size)+'</span>':'')
+      +'</div>'
+      +'<div class="content-actions">'
+      +(!isBin?'<button class="action-btn" onclick="copyContent()" aria-label="Copy file content">⎘ Copy</button>':'')
+      +'<button class="action-btn" onclick="downloadFile()" aria-label="Download file">↓ DL</button>'
+      +'<a href="'+esc(S.selectedFile.html_url)+'" target="_blank" rel="noopener" class="action-btn" aria-label="View on GitHub">↗ GH</a>'
+      +'</div></div>'
+      +'<div class="content-body"><div id="file-view"></div></div>';
+  }
+  return'<div class="empty-state">'
+    +'<div class="empty-icon" aria-hidden="true">📂</div>'
+    +'<div class="empty-title">'+esc(S.currentPath?S.currentPath.split('/').pop():S.selectedRepo?S.selectedRepo.name:'')+'</div>'
+    +'<div class="empty-desc">Select a file from the '+(mob()?'Files tab':'sidebar')+' to view its contents.</div>'
+    +'</div>';
 }
 
 /* ══ Breadcrumb ══ */
 function breadcrumbHTML(){
-  if(!S.currentPath){
-    return `<button class="bc-item current">🏠 ${esc(S.selectedRepo.name)}</button>`;
-  }
-  var h=`<button class="bc-item" onclick="navigateTo(-1)">🏠 ${esc(S.selectedRepo.name)}</button>`;
+  if(!S.currentPath)
+    return'<button class="bc-item current" aria-current="page" aria-label="Root: '+esc(S.selectedRepo.name)+'">🏠 '+esc(S.selectedRepo.name)+'</button>';
+  var h='<button class="bc-item" onclick="navigateTo(-1)" aria-label="Go to root: '+esc(S.selectedRepo.name)+'">🏠 '+esc(S.selectedRepo.name)+'</button>';
   var parts=S.currentPath.split('/');
   parts.forEach(function(part,i){
-    h+=`<span class="bc-sep">›</span>`;
-    if(i===parts.length-1&&!S.selectedFile) h+=`<span class="bc-item current">${esc(part)}</span>`;
-    else h+=`<button class="bc-item" onclick="navigateTo(${i})">${esc(part)}</button>`;
+    h+='<span class="bc-sep" aria-hidden="true">›</span>';
+    if(i===parts.length-1&&!S.selectedFile) h+='<span class="bc-item current" aria-current="page">'+esc(part)+'</span>';
+    else h+='<button class="bc-item" onclick="navigateTo('+i+')" aria-label="Go to '+esc(part)+'">'+esc(part)+'</button>';
   });
-  if(S.selectedFile) h+=`<span class="bc-sep">›</span><span class="bc-item current">📄 ${esc(S.selectedFile.name)}</span>`;
+  if(S.selectedFile) h+='<span class="bc-sep" aria-hidden="true">›</span><span class="bc-item current" aria-current="page">📄 '+esc(S.selectedFile.name)+'</span>';
   return h;
 }
 
-/* ══ Render file ══ */
+/* ══ Render file content ══ */
+var _lastRenderedSha=null;
 function renderFileContent(){
   var el=document.getElementById('file-view');
   if(!el||!S.selectedFile) return;
-  var n=S.selectedFile.name.toLowerCase();
-  if(/\.(png|jpg|jpeg|gif|svg|webp)$/i.test(n)){
-    el.innerHTML=`<div class="img-view"><img src="${S.selectedFile.download_url}" alt="${esc(S.selectedFile.name)}" /></div>`;
+  if(S.content==='__BINARY__'){
+    el.innerHTML='<div class="binary-view">'
+      +'<div class="binary-icon" aria-hidden="true">📦</div>'
+      +'<div class="binary-title">Binary file</div>'
+      +'<div class="binary-desc">This file cannot be previewed. Use the ↓ DL button to download it.</div>'
+      +'</div>';
     return;
   }
-  if(n.endsWith('.pdf')){
-    el.innerHTML=`<embed src="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(S.selectedFile.download_url)}" type="application/pdf" style="min-height:500px;"></embed>`;
+  var n=S.selectedFile.name.toLowerCase();
+  if(IMAGE_EXTS.test(n)){
+    el.innerHTML='<div class="img-view"><img src="'+esc(S.selectedFile.download_url)+'" alt="'+esc(S.selectedFile.name)+'" /></div>';
+    return;
+  }
+  if(PDF_EXT.test(n)){
+    el.innerHTML='<embed src="https://docs.google.com/gview?embedded=true&url='+encodeURIComponent(S.selectedFile.download_url)+'" type="application/pdf" style="min-height:500px" title="'+esc(S.selectedFile.name)+'"></embed>';
     return;
   }
   if(/\.(md|markdown|mdx)$/i.test(n)){
-    el.innerHTML=`<div class="markdown-body">${marked.parse(S.content)}</div>`;
-    hljs.highlightAll(); return;
+    el.innerHTML='<div class="markdown-body">'+marked.parse(S.content)+'</div>';
+    var key=S.selectedFile.sha;
+    if(key!==_lastRenderedSha){ hljs.highlightAll(); _lastRenderedSha=key; }
+    return;
   }
-  var ext=n.split('.').pop()||'text';
-  var escaped=S.content.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  el.innerHTML=`<div class="code-container"><pre><code class="language-${ext}">${escaped}</code></pre></div>`;
-  hljs.highlightAll();
+  var ext=n.split('.').pop()||'plaintext';
+  var escaped=S.content.replace(/[&<>]/g,function(c){ return({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]); });
+  el.innerHTML='<div class="code-container"><pre><code class="language-'+esc(ext)+'" id="code-block">'+escaped+'</code></pre></div>';
+  var key=S.selectedFile.sha;
+  if(key!==_lastRenderedSha){
+    var block=document.getElementById('code-block');
+    if(block&&typeof hljs!=='undefined'){ hljs.highlightElement(block); }
+    _lastRenderedSha=key;
+  }
 }
 
 /* ══════════════════════════════════════════
@@ -741,35 +1344,43 @@ function renderFileContent(){
 ══════════════════════════════════════════ */
 function render(){
   var el=document.getElementById('app');
+  var f=saveFocus();
 
   /* — Username — */
   if(S.step==='username'){
-    el.innerHTML=`
-    <div class="landing">
-      <div class="landing-card">
-        <div class="landing-logo">
-          <div class="logo-mark"><svg height="20" viewBox="0 0 16 16" width="20"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></div>
-          <span class="logo-text">Repo<span>Browser</span></span>
-        </div>
-        <h1 class="landing-headline">Browse any GitHub repo</h1>
-        <p class="landing-sub">Navigate files, read code, view READMEs — all without leaving this page.</p>
-        <div class="input-group">
-          <label class="input-label">GitHub Username</label>
-          <div class="input-wrap">
-            <span class="input-icon">@</span>
-            <input type="text" id="username" value="${esc(S.username)}" placeholder="e.g. hardik"
-              onkeydown="if(event.key==='Enter')handleFetchRepos()"
-              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-          </div>
-        </div>
-        <button class="btn-primary" onclick="handleFetchRepos()" ${S.loading?'disabled':''}>
-          ${S.loading?'<span class="spinner"></span> Fetching...':'→ Fetch Repositories'}
-        </button>
-        ${S.error?`<div class="error-box">⚠ ${esc(S.error)}</div>`:''}
-      </div>
-    </div>
-    <div class="footer">Made by Hardik · Enhanced fork</div>`;
-    setTimeout(()=>{var u=document.getElementById('username');if(u&&!mob())u.focus();},50);
+    var hasPat=hasPAT();
+    el.innerHTML='<div class="landing"><div class="landing-card">'
+      +'<div class="landing-logo">'
+      +'<div class="logo-mark"><svg height="20" viewBox="0 0 16 16" width="20" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></div>'
+      +'<span class="logo-text">Repo<span>Browser</span></span>'
+      +'</div>'
+      +'<h1 class="landing-headline">Browse any GitHub repo</h1>'
+      +'<p class="landing-sub">Navigate files, read code, view READMEs — works even when GitHub is blocked on your network.</p>'
+      +'<div class="input-group"><label class="input-label" for="username">GitHub Username</label>'
+      +'<div class="input-wrap"><span class="input-icon" aria-hidden="true">@</span>'
+      +'<input type="text" id="username" value="'+esc(S.username)+'" placeholder="e.g. hardikjp7"'
+      +' onkeydown="if(event.key===\'Enter\')handleFetchRepos()"'
+      +' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"'
+      +' aria-label="GitHub username"></div></div>'
+      +'<button class="btn-primary" onclick="handleFetchRepos()" '+(S.loading?'disabled':'')+' aria-busy="'+S.loading+'">'
+      +(S.loading?'<span class="spinner" aria-hidden="true"></span> Fetching…':'→ Fetch Repositories')
+      +'</button>'
+      +(S.error?'<div class="error-box" role="alert">⚠ '+esc(S.error)+'</div>':'')
+      +'<div class="landing-pat-row">'
+      +'<span class="pat-dot '+(hasPat?'pat-dot-active':'pat-dot-none')+'" style="display:inline-block;width:7px;height:7px;border-radius:50%;vertical-align:middle;margin-right:4px" aria-hidden="true"></span>'
+      +(hasPat?'Token active':'No token — 60 req/hr')
+      +' · <button class="landing-pat-link" onclick="openSettings()" aria-label="Open settings to manage API token">⚙ Settings</button>'
+      +'</div>'
+      +'</div></div>'
+      +'<footer class="footer">'
+      +'<span style="color:var(--text-dim)">v2.0</span>'
+      +' · Made with <span style="color:#f87171">♥</span> by '
+      +'<a href="https://www.linkedin.com/in/hardikjp7" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600" aria-label="Hardik on LinkedIn">hardikjp7</a>'
+      +' · <a href="https://github.com/hardikjp7/repo-browser" target="_blank" rel="noopener" style="color:var(--text-muted);text-decoration:none" aria-label="View source on GitHub">↗ Source</a>'
+      +' · <button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-family:var(--mono);font-size:10px" onclick="openSettings()">⚙ Settings</button>'
+      +'</footer>';
+    restoreFocus(f);
+    setTimeout(function(){ var u=document.getElementById('username'); if(u&&!mob()) u.focus(); },50);
     return;
   }
 
@@ -777,145 +1388,178 @@ function render(){
   if(S.step==='repo-select'){
     var reps=filteredRepos();
     var reposHTML=reps.map(function(r){
-      return `<div class="repo-card" onclick='selectRepoById("${esc(r.name)}")'>
-        <div class="repo-card-left">
-          <div class="repo-card-name">${esc(r.name)}</div>
-          ${r.description?`<div class="repo-card-desc">${esc(r.description)}</div>`:'<div class="repo-card-desc" style="color:var(--text-dim)">No description</div>'}
-        </div>
-        <div class="repo-card-meta">
-          <span class="branch-tag">${esc(r.default_branch||'main')}</span>
-          ${r.language?`<span class="lang-tag">${esc(r.language)}</span>`:''}
-        </div>
-      </div>`;
+      return'<button class="repo-card" onclick=\'selectRepoById("'+esc(r.name)+'")\'>'
+        +'<div class="repo-card-left">'
+        +'<div class="repo-card-name">'+esc(r.name)+'</div>'
+        +(r.description?'<div class="repo-card-desc">'+esc(r.description)+'</div>':'<div class="repo-card-desc" style="color:var(--text-dim)">No description</div>')
+        +'</div>'
+        +'<div class="repo-card-meta">'
+        +'<span class="branch-tag">'+esc(r.default_branch||'main')+'</span>'
+        +(r.language?'<span class="lang-tag">'+esc(r.language)+'</span>':'')
+        +'</div></button>';
     }).join('');
-    el.innerHTML=`
-    <div class="repo-select-screen">
-      <div class="rs-topbar">
-        <div class="rs-topbar-inner">
-          <button class="btn-ghost" onclick="S.step='username';render()">← Back</button>
-          <div class="rs-title">Repos of <span>${esc(S.username)}</span></div>
-        </div>
-      </div>
-      <div class="rs-body-outer">
-        <div class="rs-body">
-          <div class="input-group" style="margin-bottom:10px">
-            <div class="input-wrap">
-              <span class="input-icon">🔍</span>
-              <input type="text" id="repoSearch" value="${esc(S.repoSearch)}" placeholder="Filter repos…"
-                oninput="S.repoSearch=this.value;render()" autocomplete="off">
-            </div>
-          </div>
-          <div class="repo-count">${reps.length} of ${S.repos.length} repos</div>
-          <div class="repo-grid">
-            ${reposHTML||'<div style="padding:24px;text-align:center;color:var(--text-dim)">No repos match</div>'}
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="footer">Made by Hardik · Enhanced fork</div>`;
+    el.innerHTML='<div class="repo-select-screen">'
+      +'<nav class="rs-topbar"><div class="rs-topbar-inner">'
+      +'<button class="btn-ghost" onclick="S.step=\'username\';render()" aria-label="Go back">← Back</button>'
+      +'<div class="rs-title">Repos of <span>'+esc(S.username)+'</span></div>'
+      +'<button class="btn-ghost" onclick="openSettings()" aria-label="Settings" title="Settings">⚙</button>'
+      +'</div></nav>'
+      +'<main class="rs-body-outer"><div class="rs-body">'
+      +'<div class="input-group" style="margin-bottom:10px">'
+      +'<div class="input-wrap"><span class="input-icon" aria-hidden="true">🔍</span>'
+      +'<input type="text" id="repoSearch" value="'+esc(S.repoSearch)+'" placeholder="Filter repos…"'
+      +' oninput="S.repoSearch=this.value;render()" autocomplete="off" aria-label="Filter repositories"></div>'
+      +'</div>'
+      +'<div class="repo-count" aria-live="polite">'+reps.length+' of '+S.repos.length+' repos</div>'
+      +'<div class="repo-grid" role="list">'+(reposHTML||'<div style="padding:24px;text-align:center;color:var(--text-dim)">No repos match</div>')+'</div>'
+      +'</div></main>'
+      +'</div>'
+      +'<footer class="footer">'
+      +'<span style="color:var(--text-dim)">v2.0</span>'
+      +' · Made with <span style="color:#f87171">♥</span> by '
+      +'<a href="https://www.linkedin.com/in/hardikjp7" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">hardikjp7</a>'
+      +' · <a href="https://github.com/hardikjp7/repo-browser" target="_blank" rel="noopener" style="color:var(--text-muted);text-decoration:none">↗ Source</a>'
+      +'</footer>';
+    restoreFocus(f);
     return;
   }
 
   /* — Viewer — */
   var canBack=pathHistory.length>0;
-  var isFilesActive=!S.selectedFile||S.loading;
+  var isFilesActive=!S.selectedFile&&!S.contentLoading;
+  var hasPat=hasPAT();
+  var selectCount=Object.keys(S.selectedFiles).length;
 
-  el.innerHTML=`
-  <div class="viewer">
-    <div class="topbar">
-      <div class="topbar-logo-mark"><svg height="14" viewBox="0 0 16 16" width="14"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></div>
-      <div class="topbar-repo-info">
-        <span class="topbar-user">${esc(S.username)}</span>
-        <span class="topbar-sep">/</span>
-        <span class="topbar-repo">${esc(S.selectedRepo.name)}</span>
-      </div>
-      <!-- Desktop action buttons -->
-      <div class="topbar-actions">
-        ${canBack?`<button class="topbar-btn" onclick="goBack()">← Back</button>`:''}
-        <button class="topbar-btn" onclick="goHome()">⌂ Root</button>
-        <button class="topbar-btn" onclick="changeRepo()">⇄ Repo</button>
-        <button class="topbar-btn" onclick="S.step='username';render()">⏎ User</button>
-      </div>
-      <!-- Mobile: single Files button -->
-      <button class="topbar-files-btn" onclick="openDrawer()">📁 Files</button>
-    </div>
+  var branchOptions=S.branches.length
+    ?S.branches.map(function(b){
+        var rawName=b.isTag?b.name.replace('tag: ',''):b.name;
+        return'<option value="'+esc(rawName)+'" '+(rawName===S.selectedBranch?'selected':'')+'>'+esc(b.name)+'</option>';
+      }).join('')
+    :'<option value="'+esc(S.selectedBranch)+'" selected>'+esc(S.selectedBranch)+'</option>';
 
-    <div class="breadcrumb-bar">${breadcrumbHTML()}</div>
+  el.innerHTML=
+    '<div class="viewer" role="application" aria-label="Repository browser">'
 
-    <div class="panel-split">
-      <div class="sidebar">
-        <div class="sidebar-head">
-          <div class="sidebar-title">Files</div>
-          <div class="sidebar-search">
-            <span class="input-icon">🔍</span>
-            <input type="text" id="fileSearch" value="${esc(S.fileSearch)}" placeholder="Filter files…"
-              oninput="S.fileSearch=this.value;render()" autocomplete="off">
-          </div>
-        </div>
-        <div class="file-list">
-          ${S.loading?`<div style="padding:20px;text-align:center"><span class="spinner"></span></div>`:fileListHTML()}
-          ${S.error?`<div class="error-box" style="margin:10px">${esc(S.error)}</div>`:''}
-        </div>
-      </div>
-      <div class="content-area">${contentPanelHTML()}</div>
-    </div>
+    /* Topbar */
+    +'<header class="topbar">'
+    +'<div class="topbar-logo-mark" aria-hidden="true"><svg height="14" viewBox="0 0 16 16" width="14"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></div>'
+    +'<div class="topbar-repo-info" aria-label="Repository: '+esc(S.username)+'/'+esc(S.selectedRepo.name)+'">'
+    +'<span class="topbar-user">'+esc(S.username)+'</span>'
+    +'<span class="topbar-sep" aria-hidden="true">/</span>'
+    +'<span class="topbar-repo">'+esc(S.selectedRepo.name)+'</span>'
+    +'</div>'
+    /* Branch select */
+    +'<div class="branch-select-wrap" title="Switch branch">'
+    +'<select class="branch-select" id="branch-select" onchange="switchBranch(this.value)" aria-label="Select branch or tag">'+branchOptions+'</select>'
+    +'<span class="branch-select-arrow" aria-hidden="true">▾</span>'
+    +'</div>'
+    /* PAT indicator */
+    +'<button id="pat-dot" class="pat-indicator '+(hasPat?'pat-active':'pat-inactive')+'" onclick="openSettings()" '
+    +'title="'+(hasPat?'PAT active (5000 req/hr)':'No PAT — 60 req/hr. Click to add token.')+'" '
+    +'aria-label="'+(hasPat?'API token active':'No API token — click to add')+'"></button>'
+    /* Desktop action buttons */
+    +'<div class="topbar-actions">'
+    +(canBack?'<button class="topbar-btn" onclick="goBack()" aria-label="Go back">← Back</button>':'')
+    +'<button class="topbar-btn" onclick="goHome()" aria-label="Go to root">⌂ Root</button>'
+    +'<button class="topbar-btn" onclick="changeRepo()" aria-label="Change repository">⇄ Repo</button>'
+    +'<button class="topbar-btn" onclick="changeUser()" aria-label="Change user">⏎ User</button>'
+    +'<button class="topbar-btn topbar-btn-icon" onclick="openSettings()" aria-label="Settings">⚙</button>'
+    +'</div>'
+    +'</header>'
 
-    <div class="footer">Made by Hardik · Enhanced with navigation</div>
-  </div>
+    /* Breadcrumb */
+    +'<nav class="breadcrumb-bar" aria-label="File path">'+breadcrumbHTML()+'</nav>'
 
-  <!-- ══ MOBILE BOTTOM NAV ══ -->
-  <div class="bottom-nav">
-    <div class="bottom-nav-inner">
-      <button class="bnav-btn ${isFilesActive?'bnav-active':''}" onclick="openDrawer()">
-        <span class="bnav-icon">📁</span>
-        <span class="bnav-label">Files</span>
-      </button>
-      <button class="bnav-btn ${!isFilesActive?'bnav-active':''}" onclick="closeDrawer()">
-        <span class="bnav-icon">📄</span>
-        <span class="bnav-label">Content</span>
-      </button>
-      ${canBack
-        ?`<button class="bnav-btn" onclick="goBack()"><span class="bnav-icon">←</span><span class="bnav-label">Back</span></button>`
-        :`<button class="bnav-btn" onclick="goHome()"><span class="bnav-icon">🏠</span><span class="bnav-label">Root</span></button>`}
-      <button class="bnav-btn" onclick="changeRepo()">
-        <span class="bnav-icon">⇄</span>
-        <span class="bnav-label">Repos</span>
-      </button>
-      <button class="bnav-btn" onclick="S.step='username';render()">
-        <span class="bnav-icon">👤</span>
-        <span class="bnav-label">User</span>
-      </button>
-    </div>
-  </div>
+    /* Panel split */
+    +'<div class="panel-split">'
 
-  <!-- ══ DRAWER OVERLAY ══ -->
-  <div class="drawer-overlay ${S.drawerOpen?'open':''}" onclick="closeDrawer()"></div>
+    /* Sidebar */
+    +'<aside class="sidebar" aria-label="File browser">'
+    +'<div class="sidebar-head">'
+    +'<div class="sidebar-title-row">'
+    +'<span class="sidebar-title">Files</span>'
+    +'<button class="select-mode-btn '+(S.selectMode?'active':'')+'" onclick="toggleSelectMode()" '
+    +'aria-pressed="'+S.selectMode+'" aria-label="Toggle multi-file selection mode">'
+    +(S.selectMode?'✓ Selecting':'☐ Select')+'</button>'
+    +'</div>'
+    +'<div class="sidebar-search">'
+    +'<span class="input-icon" aria-hidden="true">🔍</span>'
+    +'<input type="text" id="fileSearch" value="'+esc(S.fileSearch)+'" placeholder="Filter files…"'
+    +' oninput="S.fileSearch=this.value;render()" autocomplete="off" aria-label="Filter files">'
+    +'</div>'
+    +'</div>'
+    +'<div class="file-list" role="tree" aria-label="Repository files">'
+    +(S.loading?'<div style="padding:20px;text-align:center"><span class="spinner" aria-label="Loading"></span></div>':fileListHTML())
+    +(S.error?'<div class="error-box" role="alert" style="margin:10px">'+esc(S.error)+'</div>':'')
+    +'</div>'
+    +(S.selectMode?selectionFooterHTML():'')
+    +'</aside>'
 
-  <!-- ══ FILE DRAWER (slides up from bottom) ══ -->
-  <div class="drawer ${S.drawerOpen?'open':''}">
-    <div class="drawer-handle" onclick="closeDrawer()">
-      <div class="drawer-handle-pill"></div>
-    </div>
-    <div class="drawer-title-row">
-      <div class="drawer-path">📂 ${esc(S.currentPath||S.selectedRepo.name)}</div>
-      <button class="drawer-close-btn" onclick="closeDrawer()">✕ Close</button>
-    </div>
-    <div class="drawer-search-row">
-      <div class="input-wrap">
-        <span class="input-icon">🔍</span>
-        <input type="text" id="drawerSearch" value="${esc(S.fileSearch)}" placeholder="Filter files…"
-          oninput="S.fileSearch=this.value;render()" autocomplete="off">
-      </div>
-    </div>
-    <div class="drawer-file-list">
-      ${S.loading
-        ?`<div style="padding:24px;text-align:center;color:var(--text-dim)"><span class="spinner"></span> Loading…</div>`
-        :fileListHTML()}
-      ${S.error?`<div class="error-box" style="margin:10px">${esc(S.error)}</div>`:''}
-    </div>
-  </div>`;
+    /* Content area */
+    +'<main class="content-area" aria-label="File content">'+contentPanelHTML()+'</main>'
+    +'</div>'
 
-  if(S.selectedFile&&!S.loading) renderFileContent();
+    +'<footer class="footer" style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap">'
+    +'<span style="color:var(--text-dim)">v2.0</span>'
+    +' · Made with <span style="color:#f87171">♥</span> by '
+    +'<a href="https://www.linkedin.com/in/hardikjp7" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-weight:600">hardikjp7</a>'
+    +'<span style="color:var(--border-bright)">·</span>'
+    +'<a href="https://github.com/hardikjp7/repo-browser" target="_blank" rel="noopener" style="color:var(--text-muted);text-decoration:none">↗ Source</a>'
+    +'<span style="color:var(--border-bright)">·</span>'
+    +'<span id="rate-footer-counter" style="font-family:var(--mono)">'
+    +(S.rateRemaining!==null?'<span style="color:var(--green)">'+S.rateRemaining+'</span>/'+S.rateLimit+' req left':'── req/hr')
+    +'</span>'
+    +'<span style="color:var(--border-bright)">·</span>'
+    +'<span style="color:var(--text-dim)" title="Press / to focus file search">Press / to search</span>'
+    +'</footer>'
+    +'</div>'
+
+    /* ── MOBILE BOTTOM NAV ── */
+    +'<nav class="bottom-nav" aria-label="Navigation">'
+    +'<div class="bottom-nav-inner">'
+    +'<button class="bnav-btn '+(isFilesActive?'bnav-active':'')+'" onclick="openDrawer()" aria-label="Open file browser">'
+    +'<span class="bnav-icon" aria-hidden="true">📁</span><span class="bnav-label">Files</span></button>'
+    +'<button class="bnav-btn '+(!isFilesActive?'bnav-active':'')+'" onclick="closeDrawer()" aria-label="View file content">'
+    +'<span class="bnav-icon" aria-hidden="true">📄</span><span class="bnav-label">Content</span></button>'
+    +(canBack
+      ?'<button class="bnav-btn" onclick="goBack()" aria-label="Go back"><span class="bnav-icon" aria-hidden="true">←</span><span class="bnav-label">Back</span></button>'
+      :'<button class="bnav-btn" onclick="goHome()" aria-label="Go to root"><span class="bnav-icon" aria-hidden="true">🏠</span><span class="bnav-label">Root</span></button>')
+    +'<button class="bnav-btn" onclick="changeRepo()" aria-label="Change repository"><span class="bnav-icon" aria-hidden="true">⇄</span><span class="bnav-label">Repos</span></button>'
+    +'<button class="bnav-btn" onclick="openSettings()" aria-label="Settings"><span class="bnav-icon" aria-hidden="true">⚙</span><span class="bnav-label">Settings</span></button>'
+    +'</div></nav>'
+
+    /* ── DRAWER OVERLAY ── */
+    +'<div class="drawer-overlay '+(S.drawerOpen?'open':'')+'" onclick="closeDrawer()" aria-hidden="true"></div>'
+
+    /* ── FILE DRAWER ── */
+    +'<div class="drawer '+(S.drawerOpen?'open':'')+'" role="dialog" aria-label="File browser" aria-modal="true">'
+    +'<div class="drawer-handle" onclick="closeDrawer()" role="button" aria-label="Close drawer">'
+    +'<div class="drawer-handle-pill" aria-hidden="true"></div>'
+    +'</div>'
+    +'<div class="drawer-title-row">'
+    +'<div class="drawer-path" aria-label="Current path">📂 '+esc(S.currentPath||S.selectedRepo.name)+'</div>'
+    +'<div class="drawer-actions">'
+    +'<button class="drawer-select-btn '+(S.selectMode?'active':'')+'" onclick="toggleSelectMode()" '
+    +'aria-pressed="'+S.selectMode+'">'+(S.selectMode?'✓ Select':'☐ Select')+'</button>'
+    +'<button class="drawer-close-btn" onclick="closeDrawer()" aria-label="Close">✕</button>'
+    +'</div>'
+    +'</div>'
+    +'<div class="drawer-search-row"><div class="input-wrap">'
+    +'<span class="input-icon" aria-hidden="true">🔍</span>'
+    +'<input type="text" id="drawerSearch" value="'+esc(S.fileSearch)+'" placeholder="Filter files…"'
+    +' oninput="S.fileSearch=this.value;render()" autocomplete="off" aria-label="Filter files">'
+    +'</div></div>'
+    +'<div class="drawer-file-list" role="tree">'
+    +(S.loading
+      ?'<div style="padding:24px;text-align:center;color:var(--text-dim)"><span class="spinner" aria-label="Loading"></span></div>'
+      :fileListHTML())
+    +(S.error?'<div class="error-box" role="alert" style="margin:10px">'+esc(S.error)+'</div>':'')
+    +'</div>'
+    +(S.selectMode?'<div class="drawer-select-footer">'+selectionFooterHTML()+'</div>':'')
+    +'</div>';
+
+  if((S.selectedFile||S.content==='__BINARY__')&&!S.contentLoading) renderFileContent();
+  restoreFocus(f);
 }
 
 /* ══ Global handlers ══ */
@@ -923,11 +1567,26 @@ function handleFetchRepos(){
   var u=document.getElementById('username');
   S.username=(u?u.value:S.username).trim();
   if(S.username) fetchRepos();
+  else showToast('Enter a GitHub username first','warn');
 }
 function selectRepoById(name){
-  var r=S.repos.find(x=>x.name===name);
+  var r=S.repos.find(function(x){ return x.name===name; });
   if(r) selectRepo(r);
 }
+
+/* ══ Keyboard shortcuts ══ */
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    if(document.getElementById('settings-overlay').style.display==='flex'){ closeSettings(); return; }
+    if(document.getElementById('confirm-overlay').style.display==='flex'){ document.getElementById('confirm-overlay').style.display='none'; return; }
+    if(S.drawerOpen){ closeDrawer(); return; }
+  }
+  if(e.key==='/' && S.step==='viewing' && document.activeElement.tagName!=='INPUT'){
+    e.preventDefault();
+    var fs=document.getElementById('fileSearch')||document.getElementById('drawerSearch');
+    if(fs) fs.focus();
+  }
+});
 
 /* ══ Resize ══ */
 var _rt;
@@ -936,7 +1595,10 @@ window.addEventListener('resize',function(){
   _rt=setTimeout(function(){ if(S.step==='viewing') render(); },200);
 });
 
-render();
+/* ══ Init ══ */
+initDB().then(function(){
+  render();
+});
 </script>
 </body>
 </html>
